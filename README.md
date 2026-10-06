@@ -155,3 +155,14 @@ psutil 官方文档（本机未安装，仅作能力对照）。详见 `事实�
 - 接口：`GET /api/learn/state`、`POST /api/learn/scan|decide`（decide 要令牌）。
 - 界面：所有专业名词**下方**都给了大白话（`GLOSSARY`，同一份用于「怎么看 → 术语表」）。
 
+
+## 开发与测试（2026-10-07 起）
+
+- **版本控制**：本目录已是 git 仓库（`git log` 可查历史）。`.gitignore` 已排除运行数据、日志、密钥（`plugin_token.txt`）、大文件与备份目录。
+- **单元测试**：用标准库 `unittest`，**零第三方依赖**（跟本程序一贯的取舍一致）。
+  - 一键跑：`tests\run-tests.cmd`，或在本目录执行 `python -m unittest discover -s tests -v`
+  - 现覆盖：GUI 控件生命周期（防 `libshiboken: Internal C++ object ... already deleted`）、`codex_trust` 哈希契约。
+- **改动约定**（依据见知识库《成熟公司软件工程心得（对管家系统的适用）》）：
+  1. 每步一个自洽的小提交（Google《Small CLs》）。
+  2. 改完先跑测试再提交（Fowler《Continuous Integration》）。
+  3. 注意：改 `supervisor_gui.py` **要重启窗口才生效**（`fresh()` 只热重载别的模块）。
