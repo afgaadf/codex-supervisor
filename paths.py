@@ -11,9 +11,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
+# 打包（PyInstaller）后，__file__ 指向包内部；用户数据要放 exe 旁边。
+if getattr(sys, "frozen", False):
+    APP_DIR = Path(sys.executable).resolve().parent
+else:
+    APP_DIR = Path(__file__).resolve().parent
 CONFIG_FILE = APP_DIR / "config.json"
 EXAMPLE_FILE = APP_DIR / "config.example.json"
 

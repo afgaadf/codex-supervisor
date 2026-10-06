@@ -38,3 +38,8 @@ plugin_token.txt
 *.tmp
 # 运行期注入载荷（每轮追加 turn，内容可由 rules_hard.json 复现）
 corrections.json
+
+# ================= 打包产物（不进版本库） =================
+packaging/build/
+packaging/dist/
+*.spec
