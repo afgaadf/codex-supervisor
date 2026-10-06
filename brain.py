@@ -54,6 +54,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
+from paths import CODEX_HOME
 
 APP_DIR = Path(__file__).resolve().parent
 LOG_DIR = APP_DIR / "logs"
@@ -62,7 +63,7 @@ BRAIN_LOG = LOG_DIR / "brain.jsonl"          # 大脑自己做过什么（审计
 SIGNALS = APP_DIR / "signals.json"           # 大脑**可以**提议扩充的信号清单（数据）
 THINK_LOG = LOG_DIR / "brain_thinks.jsonl"   # 每次「想一轮」的结果（含被守卫挡下的）
 THINK_TS = LOG_DIR / "brain_last_think"      # 上次动脑的时间（节流用）
-AD = Path.home() / ".codex" / "anti-degradation"
+AD = CODEX_HOME / "anti-degradation"
 
 # 只读的 Knowledge 来源
 K_RULES = AD / "rules" / "rules.json"

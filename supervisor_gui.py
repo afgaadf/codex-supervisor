@@ -49,6 +49,8 @@ import supervisor_ui as ui
 from gui_util import (RANK, elide, fmt_bytes, hhmmss, read_json, safe, tail_jsonl,
                       worse, _alive, _set_text, _set_enabled, fresh, _load_pc_state)
 from version import __version__
+from paths import VAULT_DIR
+from paths import CODEX_HOME
 from gui_pages import PagesMixin   # Stage A1 拆出的页面方法
 from gui_widgets import (LEVELS, chip, tag, card, line, empty, kpi, four_verdict,
                           ToolTile, Sparkline, page_header)   # Stage 2b 拆出的小部件
@@ -591,7 +593,7 @@ class Main(PagesMixin, QMainWindow):
     def _ad_thresholds(self):
         try:
             import json as _j
-            r = _j.loads((Path.home() / ".codex" / "anti-degradation" / "rules" / "rules.json").read_text(encoding="utf-8"))
+            r = _j.loads((CODEX_HOME / "anti-degradation" / "rules" / "rules.json").read_text(encoding="utf-8"))
             th = r.get("thresholds") or {}
             lv = r.get("levels") or {}
             return "返工≥%s 计分 · 降智线 %s · 上下文警戒 %s 字" % (
@@ -602,7 +604,7 @@ class Main(PagesMixin, QMainWindow):
     def _inject_24h(self):
         try:
             import datetime as _dt
-            p2 = Path.home() / ".codex" / "anti-degradation" / "logs" / "hook.log"
+            p2 = CODEX_HOME / "anti-degradation" / "logs" / "hook.log"
             lines = p2.read_text(encoding="utf-8", errors="replace").splitlines()[-4000:]
             cut = _dt.datetime.now() - _dt.timedelta(hours=24)
             n = 0
@@ -657,7 +659,7 @@ class Main(PagesMixin, QMainWindow):
     def vault_local_scan(self):
         """兜底扫描：直接读库文件；拿不到双链。"""
         import os as _os
-        root = Path(r"C:\Users\taich\Documents\Obsidian Vault")
+        root = VAULT_DIR
         items = []
         miss = stale = big = n = 0
         now = time.time()

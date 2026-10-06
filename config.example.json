@@ -1,0 +1,5 @@
+{
+  "_comment": "复制成 config.json 后按需修改。留空则用默认值（~ 表示用户目录）",
+  "codex_home": "~/.codex",
+  "vault_dir": "~/Documents/Obsidian Vault"
+}

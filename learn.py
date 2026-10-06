@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """learn.py —— 监督者的学习内核（v1）
 
 怎么学（全部有据可查，不猜）：
@@ -12,13 +12,14 @@ from __future__ import annotations
 import json, time
 from datetime import datetime, timezone
 from pathlib import Path
+from paths import CODEX_HOME
 
 APP_DIR = Path(__file__).resolve().parent
 LESSONS = APP_DIR / "lessons.jsonl"
 CANDS = APP_DIR / "learn_candidates.json"
 JUDGE = APP_DIR / "judgments.jsonl"
 CHANGES_LOG = APP_DIR / "changes" / "log.jsonl"
-EVENTS = Path.home() / ".codex" / "anti-degradation" / "state" / "events.jsonl"
+EVENTS = CODEX_HOME / "anti-degradation" / "state" / "events.jsonl"
 
 
 def _now():

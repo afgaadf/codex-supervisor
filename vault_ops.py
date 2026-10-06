@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """vault_ops.py —— 知识库运维（电脑管家负责）
 
 运维闭环（每步可查、可回滚）：
@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
-V = Path(r"C:\Users\taich\Documents\Obsidian Vault")
+from paths import VAULT_DIR as V
 IDX = APP_DIR / "vault_index.json"
 CHK = APP_DIR / "vault_checks.json"
 CLS = APP_DIR / "vault_classes.json"

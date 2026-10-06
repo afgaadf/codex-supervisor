@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """reorganize_vault.py —— 重新整理一份：① 概览合并成一篇正本 ② 生成全库总目录
 
 规矩：正文不进垃圾桶 —— 原件整包备份到库外，再从库里移走（移动，不删除）。
@@ -9,10 +9,10 @@ from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
 
-V = Path(r"C:\Users\taich\Documents\Obsidian Vault")
+from paths import APP_DIR, VAULT_DIR as V
 ARCH = V / "90_归档" / "Nexus开发历史"
 GLANCE = ARCH / "概览"
-BACKUP = Path(r"C:\Users\taich\.codex\supervisor\vault_merge_backup") / ("reorg-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+BACKUP = APP_DIR / "vault_merge_backup" / ("reorg-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
 TOC = V / "知识库总目录.md"
 
 

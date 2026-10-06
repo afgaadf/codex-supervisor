@@ -9,8 +9,7 @@ import difflib, json, shutil, subprocess
 from datetime import datetime
 from pathlib import Path
 
-APP = Path(r"C:\Users\taich\.codex\supervisor")
-V = Path(r"C:\Users\taich\Documents\Obsidian Vault")
+from paths import APP_DIR as APP, VAULT_DIR as V
 BK = APP / "vault_ops_backup"
 LOG = APP / "vault_ops_log.jsonl"
 

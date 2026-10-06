@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QFrame, QHBoxLayout, QHeaderVi
                                QVBoxLayout, QWidget)
 
 from gui_data import ALERT_ZH, APP_DIR, AUDIT_ZH, GLOSSARY, GLOSSARY_LONG, SIZE_HIST
+from paths import CODEX_HOME
 from gui_util import (_load_pc_state, elide, fmt_bytes, fresh, hhmmss, read_json, tail_jsonl)
 from gui_widgets import (LEVELS, Sparkline, card, chip, empty, four_verdict, kpi, line,
                          page_header, tag)
@@ -193,7 +194,7 @@ class PagesMixin:
         h.addSpacing(8)
         h.addWidget(self.lbl_trust, 1)
         bv.addWidget(row)
-        line(bv, "信任写哪", "C:\\Users\\taich\\.codex\\config.toml → [hooks.state.*] trusted_hash", t, 120)
+        line(bv, "信任写哪", "%s → [hooks.state.*] trusted_hash" % (CODEX_HOME / "config.toml"), t, 120)
         line(bv, "为什么", "只有你能点，AI 没有令牌", t, 120)
 
 

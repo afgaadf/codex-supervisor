@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """vault_classify.py —— 知识库分类（电脑管家负责）
 
 分类规则写在 CLASSIFY 里（路径 + 标题关键词 → 分类），结果：
@@ -14,7 +14,7 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parent
 IDX = APP_DIR / "vault_index.json"
 OUT_JSON = APP_DIR / "vault_classes.json"
-V = Path(r"C:\Users\taich\Documents\Obsidian Vault")
+from paths import VAULT_DIR as V
 
 CLASSIFY = [
     ("规范标准", ["规范", "标准", "铁律", "清单", "体系", "指南", "SOP", "手册", "要求", "SOP"]),

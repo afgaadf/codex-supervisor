@@ -16,8 +16,9 @@
 from __future__ import annotations
 import hashlib, json, re, tomllib
 from pathlib import Path
+from paths import CODEX_HOME  # noqa: E402
 
-CODEX_HOME = Path.home() / ".codex"
+# CODEX_HOME 来自 paths.py（可配置）
 HOOKS_JSON = CODEX_HOME / "hooks.json"
 CONFIG_TOML = CODEX_HOME / "config.toml"
 

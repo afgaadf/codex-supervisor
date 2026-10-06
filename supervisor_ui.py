@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """监督者（Supervisor） —— 独立于 Codex、替用户盯住 Codex 的程序。
 
 流程：需要信任 → 向监督者提交「申请」→ 监督者通知用户 → 用户在界面「同意/拒绝」。
@@ -15,6 +15,9 @@ import hashlib, http.server, json, re as _re, secrets, socketserver, subprocess,
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+from paths import CODEX_HOME
+
+CODEX_CFG = str(CODEX_HOME / "config.toml")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import codex_trust as ct  # noqa: E402
@@ -32,12 +35,12 @@ VAULT_EVENTS = APP_DIR / "vault_events.jsonl"   # 插件推来的实时事件流
 VAULT_CHECKS = APP_DIR / "vault_checks.json"    # 插件跑出来的规矩体检结果
 VAULT_CMDS = APP_DIR / "vault_commands.jsonl"   # 监督者下发给插件的命令（只允许新建/追加/移动）
 PLUGIN_TOKEN = APP_DIR / "plugin_token.txt"     # 插件读它来鉴权（同用户可读）
-STATE_DB = Path.home() / ".codex" / "state_5.sqlite"
+STATE_DB = CODEX_HOME / "state_5.sqlite"
 HOST, PORT = "127.0.0.1", 8765
 TOKEN = secrets.token_urlsafe(24)
-AD = Path.home() / ".codex" / "anti-degradation"
+AD = CODEX_HOME / "anti-degradation"
 AD_STATE, AD_EVENTS, AD_RULES = AD / "state" / "session.json", AD / "state" / "events.jsonl", AD / "rules" / "rules.json"
-SESSIONS = Path.home() / ".codex" / "sessions"
+SESSIONS = CODEX_HOME / "sessions"
 SUPERVISOR = AD / "supervisor.py"
 STALE_MIN = 10
 
@@ -988,7 +991,7 @@ async function load(){
 
   document.getElementById("protect").innerHTML = PR.protected
     ? '<span class="pill p-ok">✅ 已受保护</span> <span class="mut">AI 只能在它自己的工作区里写，碰不到监督者。</span>'
-    : '<span class="pill p-warn">⚠️ 还没受保护</span> <div style="margin-top:8px">现在 AI 有<b>完整权限</b>，理论上可以读改监督者。开启保护要改一处设置：<details><summary>看怎么改（给懂电脑的人）</summary><div style="margin-top:8px">在 <code>C:\\Users\\taich\\.codex\\config.toml</code> 里加：<br><code>sandbox_mode = "workspace-write"</code><br>然后重启 Codex。监督者装在 <code>'+esc(PR.self_path)+'</code>（工作区之外），所以收紧后它就写不到了。</div></details></div>';
+    : '<span class="pill p-warn">⚠️ 还没受保护</span> <div style="margin-top:8px">现在 AI 有<b>完整权限</b>，理论上可以读改监督者。开启保护要改一处设置：<details><summary>看怎么改（给懂电脑的人）</summary><div style="margin-top:8px">在 <code>' + esc(CODEX_CFG) + '</code> 里加：<br><code>sandbox_mode = "workspace-write"</code><br>然后重启 Codex。监督者装在 <code>'+esc(PR.self_path)+'</code>（工作区之外），所以收紧后它就写不到了。</div></details></div>';
 
   document.getElementById("corr").innerHTML = CO.length ? CO.map(v=>`
     <div class="flag">

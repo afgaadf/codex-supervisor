@@ -13,10 +13,10 @@ import json, shutil, sys, time
 from datetime import datetime
 from pathlib import Path
 
-V = Path(r"C:\Users\taich\Documents\Obsidian Vault")
+from paths import APP_DIR, VAULT_DIR as V
 ROOT = V / "90_归档" / "Nexus开发历史"
 MERGED = ROOT / "_合并"
-BACKUP = Path(r"C:\Users\taich\.codex\supervisor\vault_merge_backup") / datetime.now().strftime("%Y%m%d-%H%M%S")
+BACKUP = APP_DIR / "vault_merge_backup" / datetime.now().strftime("%Y%m%d-%H%M%S")
 SKIP = {"_合并", "概览"}
 
 

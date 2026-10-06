@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """judge.py —— 监督者的「工作监督」判断器。
 
 它盯的是**项目规范**，不是"AI 自己说要做的事"：
@@ -28,7 +28,7 @@ import json, os, re, time, urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
 
-CODEX = Path.home() / ".codex"
+from paths import CODEX_HOME as CODEX
 APP_DIR = Path(__file__).resolve().parent
 
 RUBRIC_DIR = APP_DIR / "rubrics"

@@ -14,6 +14,8 @@
 from __future__ import annotations
 import json, time
 from pathlib import Path
+
+from paths import VAULT_DIR
 from datetime import datetime, timezone
 
 APP_DIR = Path(__file__).resolve().parent
@@ -123,7 +125,7 @@ def report_to_vault(vault_dir=None):
     r = compute()
     if not r.get("ok"):
         return {"ok": False, "error": r.get("error")}
-    root = Path(vault_dir or r"C:\Users\taich\Documents\Obsidian Vault")
+    root = Path(vault_dir) if vault_dir else VAULT_DIR
     wd = root / "00_Inbox"
     wd.mkdir(parents=True, exist_ok=True)
     p = wd / ("_知识库优先级-%s.md" % datetime.now().strftime("%Y-%m-%d"))
