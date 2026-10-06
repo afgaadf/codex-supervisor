@@ -1,4 +1,6 @@
-﻿# codex-supervisor
+# codex-supervisor
+
+[![CI](https://github.com/afgaadf/codex-supervisor/actions/workflows/ci.yml/badge.svg)](https://github.com/afgaadf/codex-supervisor/actions/workflows/ci.yml)
 
 ## 下载
 
@@ -181,6 +183,7 @@ psutil 官方文档（本机未安装，仅作能力对照）。详见 `事实�
 
 ## 公开工程文件
 
+- `LICENSE`：当前采用 **All rights reserved**，未经书面许可不得再分发。
 - `PRIVACY.md`：本机读取、写入和联网边界。
 - `SECURITY.md`：漏洞报告和安全边界。
 - `THIRD-PARTY-NOTICES.md`：冻结版/MSIX 的第三方组件清单。
