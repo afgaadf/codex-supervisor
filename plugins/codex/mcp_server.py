@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PLUGIN_NAME = "codex"
-PLUGIN_VERSION = "0.1.0"
+PLUGIN_VERSION = "0.1.1"
 SERVER_NAME = "codex-supervisor"
 DEFAULT_PROTOCOL = "2024-11-05"
 
@@ -257,22 +257,63 @@ def tool_failure_modes(args):
     }
 
 
+# 纯文本自检时**无法证实**的条目：它们依赖"本轮实际做了什么"。
+# 分不清"说"与"做"时就不该断言，否则每句收尾声明都会被误报。
+_ACTION_DEPENDENT = {
+    "codex.claim_without_action", "codex.no_test_after_change", "codex.fake_verification",
+    "codex.ignored_tool_error", "codex.no_evidence_claim", "codex.no_library_lookup",
+    "codex.unbounded_retry", "codex.repeat_loop", "codex.token_bloat",
+    "codex.destructive_glob",
+}
+
+
 def tool_check_text(args):
-    """对一段文本做确定性失败模式自检（复用 checkers.check_turn）。"""
-    text = str((args or {}).get("text") or "")
-    if not text.strip():
+    """对文本做确定性失败模式自检。
+
+    两种模式：
+      · 结构化（推荐）：给 `say`（收尾声明）和/或 `actions`（本轮实际动作），
+        `text` 当用户提问。这时动作类检查是可信的。
+      · 纯文本：只给 `text`。此时动作类检查**一律不下结论**，只报纯文本可证的条目，
+        并在返回里标 `text_only=true`，避免"每句完成声明都被判违规"的误报。
+    """
+    args = args or {}
+    text = str(args.get("text") or "")
+    actions = args.get("actions")
+    say = args.get("say")
+    if not text.strip() and not str(actions or "").strip() and not str(say or "").strip():
         return {"ok": False, "error": "缺少 text 参数（要自检的文本为空）", "findings": []}
     checkers = _load_checkers()
     if checkers is None or not hasattr(checkers, "check_turn"):
         return {"ok": False, "error": "checkers.py 不可用，无法执行自检", "findings": []}
+
+    structured = actions is not None or say is not None
     try:
         with _SilenceStdout():
-            findings = checkers.check_turn(text, text, text)
+            if structured:
+                findings = checkers.check_turn(text, str(actions or ""), str(say or ""))
+            else:
+                findings = checkers.check_turn("", "", text)
     except Exception as exc:
         log("check_turn 失败: %r" % exc)
         return {"ok": False, "error": "自检执行异常：%r" % exc, "findings": []}
+
     findings = list(findings or [])
-    return {"ok": True, "count": len(findings), "findings": findings}
+    suppressed = 0
+    if not structured:
+        kept = []
+        for f in findings:
+            if f.get("id") in _ACTION_DEPENDENT:
+                suppressed += 1
+            else:
+                kept.append(f)
+        findings = kept
+    out = {"ok": True, "count": len(findings), "findings": findings,
+           "text_only": (not structured)}
+    if suppressed:
+        out["suppressed_action_checks"] = suppressed
+        out["note"] = ("纯文本模式：%d 条依赖“本轮实际做了什么”的检查未下结论。"
+                       "要完整的动作类检查，请同时传 actions / say。" % suppressed)
+    return out
 
 
 # ------------------------------------------------------------------ MCP 契约
@@ -296,10 +337,14 @@ TOOLS = [
     },
     {
         "name": "check_text",
-        "description": "对一段文本（如本轮动作 + 收尾声明）做确定性失败模式自检，返回命中的失败模式与证据。声称完成/已修复/已验证前应先调用。",
+        "description": "对本轮做确定性失败模式自检：给 actions（实际动作）与 say（收尾声明）最准；只给 text 时按纯文本模式，动作类检查不下结论。声称完成/已修复/已验证前应先调用。",
         "inputSchema": {
             "type": "object",
-            "properties": {"text": {"type": "string", "description": "要自检的文本"}},
+            "properties": {
+                "text": {"type": "string", "description": "要自检的文本（结构化模式下当作用户提问）"},
+                "actions": {"type": "string", "description": "本轮实际做了什么（工具调用/命令）。给了它，动作类检查才可信"},
+                "say": {"type": "string", "description": "最后对用户说的话/收尾声明"}
+            },
             "required": ["text"],
             "additionalProperties": False,
         },
