@@ -1,0 +1,38 @@
+# ================= 运行数据 / 日志（不进版本库） =================
+logs/
+__pycache__/
+*.pyc
+*.pyo
+*.jsonl
+
+# 运行期状态快照（会被程序不断改写）
+brain.json
+pc_state.json
+signals.json
+settings.json
+vault_index.json
+vault_classes.json
+vault_broken_links.json
+vault_checks.json
+vault_link_check.json
+learn_candidates.json
+
+# ================= 备份 / 回滚目录（运行数据） =================
+backup/
+vault_ops_backup/
+vault_merge_backup/
+changes/
+
+# ================= 密钥（绝不入库） =================
+plugin_token.txt
+*.token
+
+# ================= 大文件 / 截图（非源码） =================
+*.png
+*.jpg
+*.jpeg
+!home.png
+!home.ico
+*.bak
+*.bak-*
+*.tmp

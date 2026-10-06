@@ -1,0 +1,87 @@
+{
+ "version": 1,
+ "note": "硬性规则库 —— 由电脑管家保存（不再只写在 AGENTS.md / 聊天记录里）。每条：规则编号、名称、要求、怎么查、出处、启用状态。启用后会随「常驻规矩」每轮注入给 AI，并作为判分器的检查依据。",
+ "updated": "2026-10-07",
+ "rules": [
+  {
+   "id": "H1",
+   "name": "标准按权威",
+   "enabled": true,
+   "requirement": "任何标准条文必须指到权威出处；指不到的只能标「项目经验（非权威）」，不许当标准。",
+   "check": "看结论有没有带出处；出处是不是权威清单里的。",
+   "source": "AGENTS.md 铁律1 / 权威依据清单"
+  },
+  {
+   "id": "H2",
+   "name": "联网核实",
+   "enabled": true,
+   "requirement": "涉及规格/版本/API/标准条文/官方要求/具体数值/「最新」结论，先联网查再写；引用给 来源URL + 等级T1–T4 + 访问日期；查不到 T1 就写「没查到一手来源」。",
+   "check": "看本轮有没有真检索动作；关键数值有没有 T1 来源。",
+   "source": "rubrics/2d-video.md D1–D5 / 事实核查表.md"
+  },
+  {
+   "id": "H3",
+   "name": "查库先行",
+   "enabled": true,
+   "requirement": "涉及笔记/知识库/资料/既有规范时，先查库再写；不许凭记忆复述库里的内容。",
+   "check": "看动作里有没有真读库文件（Obsidian Vault / 10_笔记 / MOC…）。",
+   "source": "rubrics/obsidian-vault.md C1–C2"
+  },
+  {
+   "id": "H4",
+   "name": "说做一致",
+   "enabled": true,
+   "requirement": "声称「已完成/已修复/已核对」时，必须有对应动作和产物；没有就是说了没做。",
+   "check": "把「话里声称的」和「动作清单里的」对齐。",
+   "source": "rubrics/2d-video.md B7"
+  },
+  {
+   "id": "H5",
+   "name": "不许省工",
+   "enabled": true,
+   "requirement": "不得为省时间/工作量降低标准；做不完整的必须登记欠账；结项条件 = 欠账清零。",
+   "check": "看有没有跳工序、抽帧代全量、只给路径不给成品。",
+   "source": "AGENTS.md 铁律2"
+  },
+  {
+   "id": "H6",
+   "name": "禁止省工用语",
+   "enabled": true,
+   "requirement": "不许出现「先用简单的垫一下」「用特效补足」「先出廉价版」「等以后补」「复用省事」。",
+   "check": "直接在话里找这些词。",
+   "source": "AGENTS.md 铁律3"
+  },
+  {
+   "id": "H7",
+   "name": "交付可见",
+   "enabled": true,
+   "requirement": "成品必须让对方看得到（内嵌预览 + 拷到桌面 + 面板打开）；只给路径 = 不合格。",
+   "check": "看有没有真的把结果展示出来。",
+   "source": "AGENTS.md 铁律4"
+  },
+  {
+   "id": "H8",
+   "name": "做完入库",
+   "enabled": true,
+   "requirement": "复盘、素材、结论必须入知识库，不许只留在聊天记录里。",
+   "check": "看有没有写进库里（10_笔记 / 00_Inbox）。",
+   "source": "rubrics/2d-video.md B6"
+  },
+  {
+   "id": "H9",
+   "name": "整理不删正文",
+   "enabled": true,
+   "requirement": "整理知识库时不删除正文/观点/来源；只允许移动、重命名、新建；原件先备份到库外。",
+   "check": "看有没有删除动作；合并件里原文是否完整。",
+   "source": "库内 AGENTS.md 硬性约束 1–3"
+  },
+  {
+   "id": "H10",
+   "name": "每轮必联网",
+   "enabled": true,
+   "requirement": "每一轮思考/回答前必须先做一次联网核实：先判断本轮有没有需要外部查证的事实，有就查到来源（URL + T1–T4 + 访问日期），没有也要写明「本轮无需外部事实」；不许凭记忆直接下结论。",
+   "check": "看本轮有没有检索动作、有没有把来源/结论写出来；不适用必须说明理由。",
+   "source": "用户要求（2026-10-07）+ rubrics/2d-video.md D1–D5"
+  }
+ ]
+}
