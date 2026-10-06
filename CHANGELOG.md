@@ -6,6 +6,34 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-07
+
+### Added
+- 失败模式库从 28 项扩到 **60 项**（Codex 30 · Obsidian 30），并给每条补上
+  可机读的 source / severity / auto 字段。
+- 新增 **`checkers.py` 自动检查器**：把 `auto=yes` 的条目从"提示词"升级为
+  **真能跑的确定性检测**（只读、可解释、带证据行）。
+  - Codex 侧：完成声明无动作、改了不验证、假装验证、工具报错当成功、
+    重复绕圈、自证完成、无证据的肯定断言、大文件全量读等。
+  - Obsidian 侧：断链、改名未修链接、缺 frontmatter、孤立笔记、收件箱未分流、
+    收件箱堆积、孤立附件、未提交等，可直接读 `vault_index.json` 跑。
+- 自动检查结果并入每轮判据（规则标签带【自动】），确定性证据优先。
+- 界面「帮助」页失败模式库卡片新增"检测力"行（可自动检出 / 需人工判 计数）。
+
+### Sources
+- Obsidian：官方 Help 文档（canvas / bases / properties / aliases / links / tags /
+  attachments / templates / daily-notes，2026-10-07 访问，均为 T1）。
+- Codex：官方 developers 文档本机仍返回 403；相关条目继续明确标为
+  **项目经验（非权威）**，不冒充官方规则。
+
+### Fixed
+- 纯锚点链接 `[[#xxx]]` 不再误判为断链。
+- 工具用文件（AGENTS.md / CLAUDE.md / maintenance_prompt.md）不再被算作
+  缺 frontmatter 或孤立笔记。
+
+### Tests
+- 新增失败模式库与检查器测试；全量测试保持全绿。
+
 ## [0.4.0] - 2026-10-07
 
 ### Added

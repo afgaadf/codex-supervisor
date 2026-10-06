@@ -126,6 +126,13 @@ class PagesMixin:
             f, bv = card(v, "失败模式库",
                          "Codex / Obsidian 已知问题；判断器每轮自动挑选相关条目")
             line(bv, "总数", "Codex %d 项 · Obsidian %d 项" % (fm.get("codex", 0), fm.get("obsidian", 0)), t, 90)
+            try:
+                _modes = FM.load_modes()
+                _auto = sum(1 for m in _modes if m.get("auto") == "yes")
+                _manual = sum(1 for m in _modes if m.get("auto") == "manual")
+                line(bv, "检测力", "可自动检出 %d 项 · 需人工判 %d 项（其余靠判断器）" % (_auto, _manual), t, 150)
+            except Exception:
+                pass
             for mode in FM.select("Codex Obsidian 完成 测试 双链 frontmatter", limit=6):
                 line(bv, mode.get("area", ""), "%s：%s" % (mode.get("title"), mode.get("fix")), t, 130)
         except Exception:

@@ -1,468 +1,991 @@
 {
- "version": 1,
- "updated": "2026-10-07",
- "note": "可机读失败模式库。auto=yes/partial/manual；source 为证据出处或项目经验标注。",
- "modes": [
-  {
-   "id": "codex.claim_without_action",
-   "area": "codex",
-   "title": "声称完成但没有对应动作",
-   "severity": "high",
-   "triggers": [
-    "完成",
-    "已修复",
-    "已核对",
-    "done",
-    "✅"
-   ],
-   "detect": "口头完成声明与本轮工具调用/产物不一致",
-   "fix": "补动作和证据，或改口为未完成",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "yes"
-  },
-  {
-   "id": "codex.no_test_after_change",
-   "area": "codex",
-   "title": "改了代码/文档却不验证",
-   "severity": "high",
-   "triggers": [
-    "修改",
-    "修复",
-    "重构",
-    "patch",
-    "tests",
-    "测试"
-   ],
-   "detect": "有写入动作但没有测试、复检或可验证产物",
-   "fix": "运行相关测试并引用结果",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "partial"
-  },
-  {
-   "id": "codex.destructive_without_backup",
-   "area": "codex",
-   "title": "删除/覆盖/杀进程前没有备份确认",
-   "severity": "high",
-   "triggers": [
-    "删除",
-    "删除文件",
-    "rm",
-    "remove-item",
-    "taskkill",
-    "stop-process"
-   ],
-   "detect": "危险动作前没有备份、dry-run 或用户确认",
-   "fix": "先备份/dry-run，再执行并写审计",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "partial"
-  },
-  {
-   "id": "codex.scope_creep",
-   "area": "codex",
-   "title": "擅自扩大任务范围",
-   "severity": "medium",
-   "triggers": [
-    "顺便",
-    "另外",
-    "重构",
-    "清理",
-    "扩展"
-   ],
-   "detect": "用户未要求却修改额外模块或功能",
-   "fix": "回到最小改动，额外事项单独提案",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "manual"
-  },
-  {
-   "id": "codex.repeat_loop",
-   "area": "codex",
-   "title": "重复命令/绕圈不收敛",
-   "severity": "medium",
-   "triggers": [
-    "重复",
-    "再试",
-    "仍然失败",
-    "绕圈"
-   ],
-   "detect": "同一命令或同一错误连续重复且无新证据",
-   "fix": "停止重试，换假设或写交接",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "yes"
-  },
-  {
-   "id": "codex.context_amnesia",
-   "area": "codex",
-   "title": "上下文压缩后凭记忆继续",
-   "severity": "high",
-   "triggers": [
-    "压缩",
-    "compact",
-    "继续",
-    "之前"
-   ],
-   "detect": "压缩后没有重新读文件/记录就断言早期内容",
-   "fix": "重新读交接、规范和目标文件",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "partial"
-  },
-  {
-   "id": "codex.unverified_spec",
-   "area": "codex",
-   "title": "规格/版本/API 未联网核实",
-   "severity": "high",
-   "triggers": [
-    "版本",
-    "API",
-    "规格",
-    "标准",
-    "最新",
-    "官方"
-   ],
-   "detect": "涉及外部事实但没有检索和来源",
-   "fix": "查 T1 来源并写 URL、等级、访问日期",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "partial"
-  },
-  {
-   "id": "codex.ignore_agents",
-   "area": "codex",
-   "title": "忽略 AGENTS.md / 项目规约",
-   "severity": "high",
-   "triggers": [
-    "AGENTS.md",
-    "项目规约",
-    "铁律",
-    "规则"
-   ],
-   "detect": "动作与项目规约冲突或没有先读规约",
-   "fix": "先读规约，再按规约执行",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "manual"
-  },
-  {
-   "id": "codex.uncommitted_change",
-   "area": "codex",
-   "title": "改完不提交/不留版本点",
-   "severity": "medium",
-   "triggers": [
-    "git",
-    "提交",
-    "commit",
-    "仓库"
-   ],
-   "detect": "仓库有有效改动但没有提交或说明未提交",
-   "fix": "小步提交并记录提交号",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "partial"
-  },
-  {
-   "id": "codex.background_leak",
-   "area": "codex",
-   "title": "后台进程、端口或临时文件残留",
-   "severity": "medium",
-   "triggers": [
-    "后台",
-    "进程",
-    "服务",
-    "端口",
-    "daemon"
-   ],
-   "detect": "任务结束后仍有未说明的常驻进程或资源占用",
-   "fix": "收尾清理或明确登记常驻理由",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "partial"
-  },
-  {
-   "id": "codex.self_approval",
-   "area": "codex",
-   "title": "自证完成或自行解除限制",
-   "severity": "critical",
-   "triggers": [
-    "信任",
-    "批准",
-    "解除",
-    "resume",
-    "维护模式"
-   ],
-   "detect": "生产者尝试自己批准、解除或绕过监督",
-   "fix": "权限归还给人，记录审计",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "yes"
-  },
-  {
-   "id": "codex.secret_leak",
-   "area": "codex",
-   "title": "密钥/令牌/隐私写入日志或提交",
-   "severity": "critical",
-   "triggers": [
-    "token",
-    "key",
-    "password",
-    "密钥",
-    "令牌"
-   ],
-   "detect": "输出、日志、公开文件中出现敏感凭据",
-   "fix": "立即移除、轮换凭据并做公开前扫描",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "partial"
-  },
-  {
-   "id": "codex.hallucinated_source",
-   "area": "codex",
-   "title": "伪造或错引来源",
-   "severity": "high",
-   "triggers": [
-    "来源",
-    "引用",
-    "URL",
-    "链接",
-    "出处"
-   ],
-   "detect": "来源不存在、打不开或内容不支持结论",
-   "fix": "只引用实际打开的 T1/T2 来源",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "partial"
-  },
-  {
-   "id": "codex.no_library_lookup",
-   "area": "codex",
-   "title": "涉及既有资料却不查库",
-   "severity": "high",
-   "triggers": [
-    "笔记",
-    "知识库",
-    "资料",
-    "规范",
-    "已有方案"
-   ],
-   "detect": "没有检索/读取知识库就重写方案",
-   "fix": "先查库、引用已有结论或说明缺口",
-   "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-   "auto": "yes"
-  },
-  {
-   "id": "obsidian.broken_link",
-   "area": "obsidian",
-   "title": "断链或未解析链接",
-   "severity": "high",
-   "triggers": [
-    "双链",
-    "链接",
-    "wikilink",
-    "断链"
-   ],
-   "detect": "链接目标在库中不存在",
-   "fix": "修正目标、补建笔记或删除错误链接",
-   "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
-   "auto": "yes"
-  },
-  {
-   "id": "obsidian.missing_frontmatter",
-   "area": "obsidian",
-   "title": "缺 frontmatter / 属性",
-   "severity": "high",
-   "triggers": [
-    "frontmatter",
-    "属性",
-    "properties",
-    "元数据"
-   ],
-   "detect": "缺少 type/title/updated 等必要属性",
-   "fix": "按模板补属性，不覆盖正文",
-   "source": "T1：https://help.obsidian.md/properties（访问 2026-10-07）",
-   "auto": "yes"
-  },
-  {
-   "id": "obsidian.inbox_stale",
-   "area": "obsidian",
-   "title": "收件箱长期堆积",
-   "severity": "high",
-   "triggers": [
-    "00_Inbox",
-    "收件箱",
-    "归档",
-    "分类"
-   ],
-   "detect": "Inbox 笔记超过阈值未移动或处理",
-   "fix": "归类、合并或明确留在 Inbox 的理由",
-   "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
-   "auto": "yes"
-  },
-  {
-   "id": "obsidian.duplicate_note",
-   "area": "obsidian",
-   "title": "重复笔记/同一主题多篇",
-   "severity": "medium",
-   "triggers": [
-    "重复",
-    "合并",
-    "新建",
-    "同一主题"
-   ],
-   "detect": "标题或正文主题高度重合，未合并",
-   "fix": "合并到主笔记，旧条目建跳转/归档",
-   "source": "T1：https://help.obsidian.md/plugins/backlinks（访问 2026-10-07）",
-   "auto": "partial"
-  },
-  {
-   "id": "obsidian.orphan_note",
-   "area": "obsidian",
-   "title": "孤立笔记无入链也无出链",
-   "severity": "medium",
-   "triggers": [
-    "孤立",
-    "双链",
-    "图谱",
-    "backlink"
-   ],
-   "detect": "没有内部链接或反链，无法从 MOC 找到",
-   "fix": "挂到 MOC 或建立相关链接",
-   "source": "T1：https://help.obsidian.md/plugins/backlinks（访问 2026-10-07）",
-   "auto": "yes"
-  },
-  {
-   "id": "obsidian.missing_moc",
-   "area": "obsidian",
-   "title": "主题笔记没有挂进 MOC",
-   "severity": "medium",
-   "triggers": [
-    "MOC",
-    "主题",
-    "索引",
-    "目录"
-   ],
-   "detect": "新主题笔记没有从 MOC 或索引可达",
-   "fix": "补 MOC 链接并检查反链",
-   "source": "T1：https://help.obsidian.md/plugins/backlinks（访问 2026-10-07）",
-   "auto": "partial"
-  },
-  {
-   "id": "obsidian.attachment_misplaced",
-   "area": "obsidian",
-   "title": "附件散落在笔记目录",
-   "severity": "low",
-   "triggers": [
-    "附件",
-    "图片",
-    "PDF",
-    "20_附件"
-   ],
-   "detect": "图片/PDF/音频等附件不在约定附件目录",
-   "fix": "移动到附件目录并修引用",
-   "source": "T1：https://help.obsidian.md/attachments（访问 2026-10-07）",
-   "auto": "partial"
-  },
-  {
-   "id": "obsidian.unsafe_delete",
-   "area": "obsidian",
-   "title": "未经授权删除正文/观点/来源",
-   "severity": "critical",
-   "triggers": [
-    "删除",
-    "合并",
-    "整理",
-    "去重"
-   ],
-   "detect": "出现删除正文、观点、来源的动作",
-   "fix": "还原内容；只允许移动/重命名/新建",
-   "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
-   "auto": "manual"
-  },
-  {
-   "id": "obsidian.overwrite_existing",
-   "area": "obsidian",
-   "title": "移动/新建覆盖已有文件",
-   "severity": "high",
-   "triggers": [
-    "移动",
-    "重命名",
-    "新建",
-    "覆盖"
-   ],
-   "detect": "目标路径已存在却被覆盖",
-   "fix": "先检测冲突、改名或人工确认",
-   "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
-   "auto": "partial"
-  },
-  {
-   "id": "obsidian.rename_without_link_repair",
-   "area": "obsidian",
-   "title": "改名/移动后未修链接",
-   "severity": "high",
-   "triggers": [
-    "重命名",
-    "移动",
-    "改名",
-    "链接"
-   ],
-   "detect": "移动后旧双链、嵌入或本地链接仍指向旧路径",
-   "fix": "扫描并修复引用，再复检断链",
-   "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
-   "auto": "yes"
-  },
-  {
-   "id": "obsidian.uncommitted_vault",
-   "area": "obsidian",
-   "title": "知识库改完未提交 Git",
-   "severity": "medium",
-   "triggers": [
-    "git",
-    "提交",
-    "维护",
-    "入库"
-   ],
-   "detect": "库工作区有有效改动但没有提交",
-   "fix": "按库规提交并记录变更",
-   "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
-   "auto": "yes"
-  },
-  {
-   "id": "obsidian.tag_drift",
-   "area": "obsidian",
-   "title": "标签命名漂移/同义标签并存",
-   "severity": "low",
-   "triggers": [
-    "标签",
-    "tag",
-    "分类"
-   ],
-   "detect": "同一主题出现多个近义或格式不一致标签",
-   "fix": "统一标签词表并批量提案修正",
-   "source": "T1：https://help.obsidian.md/properties（访问 2026-10-07）",
-   "auto": "manual"
-  },
-  {
-   "id": "obsidian.missing_source_on_clip",
-   "area": "obsidian",
-   "title": "剪藏/附件缺少来源",
-   "severity": "high",
-   "triggers": [
-    "剪藏",
-    "附件",
-    "来源",
-    "URL",
-    "出处"
-   ],
-   "detect": "第三方资料没有原出处、作者或访问日期",
-   "fix": "补来源元数据，查不到就标注未查到",
-   "source": "T1：https://help.obsidian.md/attachments（访问 2026-10-07）",
-   "auto": "partial"
-  },
-  {
-   "id": "obsidian.stale_updated",
-   "area": "obsidian",
-   "title": "updated 属性过期或与会话时间不一致",
-   "severity": "low",
-   "triggers": [
-    "updated",
-    "更新",
-    "日期",
-    "frontmatter"
-   ],
-   "detect": "内容已改动但 updated 未更新",
-   "fix": "更新 updated 或说明原因",
-   "source": "T1：https://help.obsidian.md/properties（访问 2026-10-07）",
-   "auto": "partial"
-  }
- ]
+  "version": 2,
+  "updated": "2026-10-07",
+  "note": "可机读失败模式库。auto=yes/partial/manual；source 为证据出处或项目经验标注。",
+  "modes": [
+    {
+      "id": "codex.claim_without_action",
+      "area": "codex",
+      "title": "声称完成但没有对应动作",
+      "severity": "high",
+      "triggers": [
+        "完成",
+        "已修复",
+        "已核对",
+        "done",
+        "✅"
+      ],
+      "detect": "口头完成声明与本轮工具调用/产物不一致",
+      "fix": "补动作和证据，或改口为未完成",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.no_test_after_change",
+      "area": "codex",
+      "title": "改了代码/文档却不验证",
+      "severity": "high",
+      "triggers": [
+        "修改",
+        "修复",
+        "重构",
+        "patch",
+        "tests",
+        "测试"
+      ],
+      "detect": "有写入动作但没有测试、复检或可验证产物",
+      "fix": "运行相关测试并引用结果",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.destructive_without_backup",
+      "area": "codex",
+      "title": "删除/覆盖/杀进程前没有备份确认",
+      "severity": "high",
+      "triggers": [
+        "删除",
+        "删除文件",
+        "rm",
+        "remove-item",
+        "taskkill",
+        "stop-process"
+      ],
+      "detect": "危险动作前没有备份、dry-run 或用户确认",
+      "fix": "先备份/dry-run，再执行并写审计",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.scope_creep",
+      "area": "codex",
+      "title": "擅自扩大任务范围",
+      "severity": "medium",
+      "triggers": [
+        "顺便",
+        "另外",
+        "重构",
+        "清理",
+        "扩展"
+      ],
+      "detect": "用户未要求却修改额外模块或功能",
+      "fix": "回到最小改动，额外事项单独提案",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "manual"
+    },
+    {
+      "id": "codex.repeat_loop",
+      "area": "codex",
+      "title": "重复命令/绕圈不收敛",
+      "severity": "medium",
+      "triggers": [
+        "重复",
+        "再试",
+        "仍然失败",
+        "绕圈"
+      ],
+      "detect": "同一命令或同一错误连续重复且无新证据",
+      "fix": "停止重试，换假设或写交接",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.context_amnesia",
+      "area": "codex",
+      "title": "上下文压缩后凭记忆继续",
+      "severity": "high",
+      "triggers": [
+        "压缩",
+        "compact",
+        "继续",
+        "之前"
+      ],
+      "detect": "压缩后没有重新读文件/记录就断言早期内容",
+      "fix": "重新读交接、规范和目标文件",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.unverified_spec",
+      "area": "codex",
+      "title": "规格/版本/API 未联网核实",
+      "severity": "high",
+      "triggers": [
+        "版本",
+        "API",
+        "规格",
+        "标准",
+        "最新",
+        "官方"
+      ],
+      "detect": "涉及外部事实但没有检索和来源",
+      "fix": "查 T1 来源并写 URL、等级、访问日期",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.ignore_agents",
+      "area": "codex",
+      "title": "忽略 AGENTS.md / 项目规约",
+      "severity": "high",
+      "triggers": [
+        "AGENTS.md",
+        "项目规约",
+        "铁律",
+        "规则"
+      ],
+      "detect": "动作与项目规约冲突或没有先读规约",
+      "fix": "先读规约，再按规约执行",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "manual"
+    },
+    {
+      "id": "codex.uncommitted_change",
+      "area": "codex",
+      "title": "改完不提交/不留版本点",
+      "severity": "medium",
+      "triggers": [
+        "git",
+        "提交",
+        "commit",
+        "仓库"
+      ],
+      "detect": "仓库有有效改动但没有提交或说明未提交",
+      "fix": "小步提交并记录提交号",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.background_leak",
+      "area": "codex",
+      "title": "后台进程、端口或临时文件残留",
+      "severity": "medium",
+      "triggers": [
+        "后台",
+        "进程",
+        "服务",
+        "端口",
+        "daemon"
+      ],
+      "detect": "任务结束后仍有未说明的常驻进程或资源占用",
+      "fix": "收尾清理或明确登记常驻理由",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.self_approval",
+      "area": "codex",
+      "title": "自证完成或自行解除限制",
+      "severity": "critical",
+      "triggers": [
+        "信任",
+        "批准",
+        "解除",
+        "resume",
+        "维护模式"
+      ],
+      "detect": "生产者尝试自己批准、解除或绕过监督",
+      "fix": "权限归还给人，记录审计",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.secret_leak",
+      "area": "codex",
+      "title": "密钥/令牌/隐私写入日志或提交",
+      "severity": "critical",
+      "triggers": [
+        "token",
+        "key",
+        "password",
+        "密钥",
+        "令牌"
+      ],
+      "detect": "输出、日志、公开文件中出现敏感凭据",
+      "fix": "立即移除、轮换凭据并做公开前扫描",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.hallucinated_source",
+      "area": "codex",
+      "title": "伪造或错引来源",
+      "severity": "high",
+      "triggers": [
+        "来源",
+        "引用",
+        "URL",
+        "链接",
+        "出处"
+      ],
+      "detect": "来源不存在、打不开或内容不支持结论",
+      "fix": "只引用实际打开的 T1/T2 来源",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.no_library_lookup",
+      "area": "codex",
+      "title": "涉及既有资料却不查库",
+      "severity": "high",
+      "triggers": [
+        "笔记",
+        "知识库",
+        "资料",
+        "规范",
+        "已有方案"
+      ],
+      "detect": "没有检索/读取知识库就重写方案",
+      "fix": "先查库、引用已有结论或说明缺口",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.broken_link",
+      "area": "obsidian",
+      "title": "断链或未解析链接",
+      "severity": "high",
+      "triggers": [
+        "双链",
+        "链接",
+        "wikilink",
+        "断链"
+      ],
+      "detect": "链接目标在库中不存在",
+      "fix": "修正目标、补建笔记或删除错误链接",
+      "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.missing_frontmatter",
+      "area": "obsidian",
+      "title": "缺 frontmatter / 属性",
+      "severity": "high",
+      "triggers": [
+        "frontmatter",
+        "属性",
+        "properties",
+        "元数据"
+      ],
+      "detect": "缺少 type/title/updated 等必要属性",
+      "fix": "按模板补属性，不覆盖正文",
+      "source": "T1：https://help.obsidian.md/properties（访问 2026-10-07）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.inbox_stale",
+      "area": "obsidian",
+      "title": "收件箱长期堆积",
+      "severity": "high",
+      "triggers": [
+        "00_Inbox",
+        "收件箱",
+        "归档",
+        "分类"
+      ],
+      "detect": "Inbox 笔记超过阈值未移动或处理",
+      "fix": "归类、合并或明确留在 Inbox 的理由",
+      "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.duplicate_note",
+      "area": "obsidian",
+      "title": "重复笔记/同一主题多篇",
+      "severity": "medium",
+      "triggers": [
+        "重复",
+        "合并",
+        "新建",
+        "同一主题"
+      ],
+      "detect": "标题或正文主题高度重合，未合并",
+      "fix": "合并到主笔记，旧条目建跳转/归档",
+      "source": "T1：https://help.obsidian.md/plugins/backlinks（访问 2026-10-07）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.orphan_note",
+      "area": "obsidian",
+      "title": "孤立笔记无入链也无出链",
+      "severity": "medium",
+      "triggers": [
+        "孤立",
+        "双链",
+        "图谱",
+        "backlink"
+      ],
+      "detect": "没有内部链接或反链，无法从 MOC 找到",
+      "fix": "挂到 MOC 或建立相关链接",
+      "source": "T1：https://help.obsidian.md/plugins/backlinks（访问 2026-10-07）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.missing_moc",
+      "area": "obsidian",
+      "title": "主题笔记没有挂进 MOC",
+      "severity": "medium",
+      "triggers": [
+        "MOC",
+        "主题",
+        "索引",
+        "目录"
+      ],
+      "detect": "新主题笔记没有从 MOC 或索引可达",
+      "fix": "补 MOC 链接并检查反链",
+      "source": "T1：https://help.obsidian.md/plugins/backlinks（访问 2026-10-07）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.attachment_misplaced",
+      "area": "obsidian",
+      "title": "附件散落在笔记目录",
+      "severity": "low",
+      "triggers": [
+        "附件",
+        "图片",
+        "PDF",
+        "20_附件"
+      ],
+      "detect": "图片/PDF/音频等附件不在约定附件目录",
+      "fix": "移动到附件目录并修引用",
+      "source": "T1：https://help.obsidian.md/attachments（访问 2026-10-07）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.unsafe_delete",
+      "area": "obsidian",
+      "title": "未经授权删除正文/观点/来源",
+      "severity": "critical",
+      "triggers": [
+        "删除",
+        "合并",
+        "整理",
+        "去重"
+      ],
+      "detect": "出现删除正文、观点、来源的动作",
+      "fix": "还原内容；只允许移动/重命名/新建",
+      "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
+      "auto": "manual"
+    },
+    {
+      "id": "obsidian.overwrite_existing",
+      "area": "obsidian",
+      "title": "移动/新建覆盖已有文件",
+      "severity": "high",
+      "triggers": [
+        "移动",
+        "重命名",
+        "新建",
+        "覆盖"
+      ],
+      "detect": "目标路径已存在却被覆盖",
+      "fix": "先检测冲突、改名或人工确认",
+      "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.rename_without_link_repair",
+      "area": "obsidian",
+      "title": "改名/移动后未修链接",
+      "severity": "high",
+      "triggers": [
+        "重命名",
+        "移动",
+        "改名",
+        "链接"
+      ],
+      "detect": "移动后旧双链、嵌入或本地链接仍指向旧路径",
+      "fix": "扫描并修复引用，再复检断链",
+      "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.uncommitted_vault",
+      "area": "obsidian",
+      "title": "知识库改完未提交 Git",
+      "severity": "medium",
+      "triggers": [
+        "git",
+        "提交",
+        "维护",
+        "入库"
+      ],
+      "detect": "库工作区有有效改动但没有提交",
+      "fix": "按库规提交并记录变更",
+      "source": "T1：https://help.obsidian.md/links（访问 2026-10-07）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.tag_drift",
+      "area": "obsidian",
+      "title": "标签命名漂移/同义标签并存",
+      "severity": "low",
+      "triggers": [
+        "标签",
+        "tag",
+        "分类"
+      ],
+      "detect": "同一主题出现多个近义或格式不一致标签",
+      "fix": "统一标签词表并批量提案修正",
+      "source": "T1：https://help.obsidian.md/properties（访问 2026-10-07）",
+      "auto": "manual"
+    },
+    {
+      "id": "obsidian.missing_source_on_clip",
+      "area": "obsidian",
+      "title": "剪藏/附件缺少来源",
+      "severity": "high",
+      "triggers": [
+        "剪藏",
+        "附件",
+        "来源",
+        "URL",
+        "出处"
+      ],
+      "detect": "第三方资料没有原出处、作者或访问日期",
+      "fix": "补来源元数据，查不到就标注未查到",
+      "source": "T1：https://help.obsidian.md/attachments（访问 2026-10-07）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.stale_updated",
+      "area": "obsidian",
+      "title": "updated 属性过期或与会话时间不一致",
+      "severity": "low",
+      "triggers": [
+        "updated",
+        "更新",
+        "日期",
+        "frontmatter"
+      ],
+      "detect": "内容已改动但 updated 未更新",
+      "fix": "更新 updated 或说明原因",
+      "source": "T1：https://help.obsidian.md/properties（访问 2026-10-07）",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.fake_verification",
+      "area": "codex",
+      "title": "假装验证：跑了无关测试或空断言却称已验证",
+      "severity": "high",
+      "triggers": [
+        "已验证",
+        "测试通过",
+        "全部通过",
+        "passed",
+        "green"
+      ],
+      "detect": "声称测试通过，但本轮没有运行相关测试，或运行的测试与改动无关",
+      "fix": "运行与改动直接相关的测试并贴出真实输出",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.ignored_tool_error",
+      "area": "codex",
+      "title": "工具或命令报错却当作成功继续",
+      "severity": "high",
+      "triggers": [
+        "error",
+        "failed",
+        "traceback",
+        "拒绝访问",
+        "不是内部或外部命令",
+        "未找到"
+      ],
+      "detect": "工具输出含错误，但后续仍按成功推进，未修正或说明",
+      "fix": "明确报错、修因或改道，不得静默跳过",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.unbounded_retry",
+      "area": "codex",
+      "title": "同一失败无上限重试不换策略",
+      "severity": "medium",
+      "triggers": [
+        "重试",
+        "retry",
+        "再来一次",
+        "again",
+        "再试"
+      ],
+      "detect": "同一命令或操作连续失败仍重复，未改变假设或方案",
+      "fix": "三次仍失败即停下换假设、记录并求助",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.unsupported_certainty",
+      "area": "codex",
+      "title": "无证据却用肯定语气断言",
+      "severity": "medium",
+      "triggers": [
+        "一定",
+        "肯定",
+        "必然",
+        "显然",
+        "毫无疑问",
+        "没问题"
+      ],
+      "detect": "对未核实的事实使用确定语气，未标注不确定性",
+      "fix": "标注证据强度，未核实的用可能/待核实",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.stale_context_reuse",
+      "area": "codex",
+      "title": "复用过期上下文（文件已变仍按旧内容继续）",
+      "severity": "high",
+      "triggers": [
+        "之前看到",
+        "前面读到",
+        "上面显示",
+        "早先",
+        "刚刚读到"
+      ],
+      "detect": "依据已被改动或覆盖的旧内容继续，未重新读取确认",
+      "fix": "改动前后重新读取关键文件，按最新内容判断",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.no_rollback_plan",
+      "area": "codex",
+      "title": "不可逆改动没有回滚或备份方案",
+      "severity": "high",
+      "triggers": [
+        "覆盖",
+        "迁移",
+        "重写",
+        "批量",
+        "migrate",
+        "覆盖写入"
+      ],
+      "detect": "破坏性或难逆改动前没有备份、版本点或回滚步骤",
+      "fix": "先做可恢复备份或提交版本点再执行",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.silent_scope_cut",
+      "area": "codex",
+      "title": "悄悄砍需求或跳过步骤且不报告",
+      "severity": "high",
+      "triggers": [
+        "跳过",
+        "暂时不",
+        "先不",
+        "略过",
+        "skip"
+      ],
+      "detect": "用户要求的部分未完成，收尾却未如实说明缺了什么",
+      "fix": "明确列出未完成项并登记欠账",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.token_bloat",
+      "area": "codex",
+      "title": "全量读取大文件或大日志不做增量",
+      "severity": "medium",
+      "triggers": [
+        "完整读取",
+        "全量",
+        "整个文件",
+        "全部日志",
+        "读整个"
+      ],
+      "detect": "对大文件或日志整体读入，浪费上下文并挤掉关键信息",
+      "fix": "用尾部读取、过滤或检索取所需片段",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.no_handoff",
+      "area": "codex",
+      "title": "长任务结束不写交接或可续点",
+      "severity": "medium",
+      "triggers": [
+        "长任务",
+        "分阶段",
+        "未完",
+        "下次继续",
+        "交接"
+      ],
+      "detect": "任务未收尾或跨会话，却没有交接说明和可续点",
+      "fix": "写清已完成、待办、下一步与命令",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.platform_assumption",
+      "area": "codex",
+      "title": "假设平台或编码导致跨环境失败",
+      "severity": "medium",
+      "triggers": [
+        "windows",
+        "linux",
+        "mac",
+        "路径分隔",
+        "换行",
+        "crlf",
+        "lf",
+        "编码"
+      ],
+      "detect": "依赖平台路径分隔符、换行或默认编码，未做兼容或声明",
+      "fix": "显式处理路径与编码（如 UTF-8、\\n）",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.nondeterministic_result",
+      "area": "codex",
+      "title": "结果依赖随机或时间不可复现且未声明",
+      "severity": "low",
+      "triggers": [
+        "随机",
+        "random",
+        "时间戳",
+        "当前时间",
+        "now()"
+      ],
+      "detect": "使用随机或时间导致输出不可复现，未固定种子或说明",
+      "fix": "固定种子或时钟，或明确标注不可复现",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.missing_repro",
+      "area": "codex",
+      "title": "报告问题或修复未给最小复现",
+      "severity": "medium",
+      "triggers": [
+        "复现",
+        "重现",
+        "repro",
+        "最小用例",
+        "步骤"
+      ],
+      "detect": "报 bug 或声称修复，却没有最小复现或验证步骤",
+      "fix": "给出最小复现与验证命令",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.credential_scope",
+      "area": "codex",
+      "title": "凭据或权限使用超出最小必要范围",
+      "severity": "high",
+      "triggers": [
+        "token",
+        "密钥",
+        "凭据",
+        "权限",
+        "sudo",
+        "管理员"
+      ],
+      "detect": "用高权限或宽范围凭据完成本可更小范围完成的操作",
+      "fix": "用最小权限，用完即回收且不落盘",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "manual"
+    },
+    {
+      "id": "codex.skipped_gate",
+      "area": "codex",
+      "title": "跳过 hook、闸门或校验却不告知",
+      "severity": "high",
+      "triggers": [
+        "hook",
+        "闸门",
+        "校验",
+        "gate",
+        "跳过检查",
+        "no-verify"
+      ],
+      "detect": "绕过或未触发校验机制，且未在结论中说明",
+      "fix": "说明为何绕过并补等价的替代校验",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.encoding_mojibake",
+      "area": "codex",
+      "title": "中文或编码被写坏（乱码、BOM、换行被改）",
+      "severity": "medium",
+      "triggers": [
+        "乱码",
+        "锟斤拷",
+        "mojibake",
+        "bom",
+        "替换字符"
+      ],
+      "detect": "写入文件出现乱码、BOM 污染或换行被改写（LF 与 CRLF 互改）",
+      "fix": "用 UTF-8 无 BOM 写入并保留原换行风格",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.over_broad_edit",
+      "area": "codex",
+      "title": "大范围机械替换导致误伤",
+      "severity": "high",
+      "triggers": [
+        "全局替换",
+        "批量替换",
+        "sed",
+        "全部替换",
+        "替换所有"
+      ],
+      "detect": "全仓或多文件替换前未确认真实范围与副作用",
+      "fix": "先 dry-run 列出命中，再分批小范围改动",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.canvas_drift",
+      "area": "obsidian",
+      "title": "canvas 引用的笔记或节点失效",
+      "severity": "medium",
+      "triggers": [
+        "canvas",
+        "画布"
+      ],
+      "detect": "canvas 文件引用的笔记被改名或删除，节点指向失效",
+      "fix": "修 canvas 中的引用或恢复目标笔记",
+      "source": "T1 https://help.obsidian.md/canvas（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.bases_property_mismatch",
+      "area": "obsidian",
+      "title": "Bases 视图依赖的属性缺失或类型不符",
+      "severity": "medium",
+      "triggers": [
+        "bases",
+        "视图",
+        "数据库"
+      ],
+      "detect": "Bases 视图所用属性在笔记中缺失或类型不一致",
+      "fix": "补齐属性或统一类型并更新视图",
+      "source": "T1 https://help.obsidian.md/bases（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.template_unused",
+      "area": "obsidian",
+      "title": "模板存在但新笔记未套用",
+      "severity": "low",
+      "triggers": [
+        "模板",
+        "template"
+      ],
+      "detect": "有模板但新建笔记结构偏离模板（缺字段或顺序）",
+      "fix": "用模板重建或补齐缺失区块",
+      "source": "T1 https://help.obsidian.md/plugins/templates（2026-10-07 访问）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.property_type_drift",
+      "area": "obsidian",
+      "title": "同名属性类型不一致",
+      "severity": "medium",
+      "triggers": [
+        "属性",
+        "frontmatter",
+        "类型"
+      ],
+      "detect": "同一属性在不同笔记中类型不同（日期/文本/列表混用）",
+      "fix": "统一属性类型并批量纠正",
+      "source": "T1 https://help.obsidian.md/properties（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.missing_alias",
+      "area": "obsidian",
+      "title": "缺 aliases 导致同一概念多名",
+      "severity": "low",
+      "triggers": [
+        "别名",
+        "alias"
+      ],
+      "detect": "常见别名未登记，同一概念散成多个名字",
+      "fix": "补 aliases 并统一命名",
+      "source": "T1 https://help.obsidian.md/aliases（2026-10-07 访问）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.link_direction",
+      "area": "obsidian",
+      "title": "双链方向错误",
+      "severity": "low",
+      "triggers": [
+        "双链",
+        "出链",
+        "入链",
+        "反向链接"
+      ],
+      "detect": "该主动出链处只靠入链，或链接方向与语义相反",
+      "fix": "调整链接方向或补出链",
+      "source": "T1 https://help.obsidian.md/links（2026-10-07 访问）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.inbox_no_triage",
+      "area": "obsidian",
+      "title": "收件箱条目无分类或标签无法分流",
+      "severity": "medium",
+      "triggers": [
+        "收件箱",
+        "inbox",
+        "分流",
+        "分类"
+      ],
+      "detect": "收件箱条目缺标签或分类，无法归位",
+      "fix": "打标签或归类并清空收件箱",
+      "source": "项目经验（非权威，库规）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.daily_note_gap",
+      "area": "obsidian",
+      "title": "日记或周记断档",
+      "severity": "low",
+      "triggers": [
+        "日记",
+        "周记",
+        "daily",
+        "断档"
+      ],
+      "detect": "日记或周记序列出现缺口",
+      "fix": "补记或登记说明",
+      "source": "T1 https://help.obsidian.md/plugins/daily-notes（2026-10-07 访问）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.duplicate_attachment",
+      "area": "obsidian",
+      "title": "同一附件重复多份",
+      "severity": "low",
+      "triggers": [
+        "附件",
+        "重复",
+        "副本"
+      ],
+      "detect": "同一附件以多份副本存在（内容相同或近似）",
+      "fix": "去重保留一份并修引用",
+      "source": "T1 https://help.obsidian.md/attachments（2026-10-07 访问）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.orphan_attachment",
+      "area": "obsidian",
+      "title": "附件无人引用",
+      "severity": "low",
+      "triggers": [
+        "附件",
+        "孤立",
+        "未引用"
+      ],
+      "detect": "附件未被任何笔记引用",
+      "fix": "归档或删除（先确认）",
+      "source": "T1 https://help.obsidian.md/attachments（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.tag_hierarchy_drift",
+      "area": "obsidian",
+      "title": "标签层级混乱",
+      "severity": "low",
+      "triggers": [
+        "标签",
+        "层级",
+        "tag"
+      ],
+      "detect": "同一主题下 #a/b 与 #a-b 并存，层级不一致",
+      "fix": "统一层级命名",
+      "source": "T1 https://help.obsidian.md/tags（2026-10-07 访问）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.external_link_rot",
+      "area": "obsidian",
+      "title": "外部链接失效",
+      "severity": "medium",
+      "triggers": [
+        "外链",
+        "http",
+        "失效",
+        "404"
+      ],
+      "detect": "笔记中外链已失效或指向错误",
+      "fix": "更新链接或标注失效",
+      "source": "项目经验（非权威，库规）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.note_bloat",
+      "area": "obsidian",
+      "title": "单篇过长未拆分",
+      "severity": "low",
+      "triggers": [
+        "过长",
+        "拆分",
+        "太长"
+      ],
+      "detect": "单篇笔记超出合理篇幅且主题混杂",
+      "fix": "按主题拆分并加索引",
+      "source": "项目经验（非权威，库规）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.frontmatter_schema_drift",
+      "area": "obsidian",
+      "title": "frontmatter 字段命名不统一",
+      "severity": "medium",
+      "triggers": [
+        "frontmatter",
+        "字段",
+        "命名"
+      ],
+      "detect": "同义字段命名不一致（date 与 日期、updated 与 更新）",
+      "fix": "统一字段命名与取值格式",
+      "source": "T1 https://help.obsidian.md/properties（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.no_bulk_snapshot",
+      "area": "obsidian",
+      "title": "批量改动前无快照",
+      "severity": "high",
+      "triggers": [
+        "批量",
+        "迁移",
+        "整理",
+        "快照"
+      ],
+      "detect": "批量改动前没有可回滚快照",
+      "fix": "先做库外备份再批量",
+      "source": "项目经验（非权威，库规）",
+      "auto": "manual"
+    },
+    {
+      "id": "obsidian.index_stale",
+      "area": "obsidian",
+      "title": "索引或总目录未随新增笔记更新",
+      "severity": "medium",
+      "triggers": [
+        "索引",
+        "目录",
+        "moc",
+        "总目录"
+      ],
+      "detect": "新增笔记未登记进索引或总目录",
+      "fix": "更新索引条目",
+      "source": "项目经验（非权威，库规）",
+      "auto": "partial"
+    }
+  ]
 }

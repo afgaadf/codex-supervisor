@@ -1,0 +1,410 @@
+# -*- coding: utf-8 -*-
+"""checkers.py —— 自动检查器：把失败模式库里 auto=yes 的条目变成**真能跑**的检测。
+
+设计原则（大厂标准）：
+  · 纯函数优先：核心检测只吃数据结构，不吃全局状态，便于单测与复现。
+  · IO 收口在适配器：读 vault_index.json / vault_checks.json / 文件内容只发生在
+    load_* 与 scan_* 里，检测函数本身不碰磁盘。
+  · 只读不改：检查器**只报**，不删不改不移动（H9）。动手交给 vault_ops。
+  · 可解释：每条 finding 带 items 证据行，人能看到"为什么被判"。
+
+用法：
+  python checkers.py                # 跑一遍，打印 JSON
+  python checkers.py --human        # 打印中文摘要
+  python checkers.py --area obsidian
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from paths import DATA_DIR, VAULT_DIR
+
+# 非知识笔记：不参与"孤立/缺 frontmatter"判定
+SKIP_DIRS = {".obsidian", ".git", ".trash", "copilot", ".opencode",
+             "20_附件", "30_模板", "90_归档"}
+ATTACH_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf",
+              ".mp3", ".wav", ".mp4", ".mov", ".zip", ".xlsx", ".docx", ".pptx"}
+NOTE_EXT = {".md"}
+PINNED = {"agents.md", "claude.md", "maintenance_prompt.md", ".gitignore"}
+HARD_SKIP = {".obsidian", ".git", ".trash", "copilot", ".opencode"}
+MD_LINK = re.compile(r"!?\[\[([^\[\]|#]+)(?:#[^\[\]|]*)?(?:\|[^\[\]]*)?\]\]")
+CERTAINTY = ("一定", "肯定", "必然", "显然", "毫无疑问", "绝对")
+DONE_WORDS = ("完成", "已修复", "已核对", "搞定", "done", "已提交", "已解决")
+TEST_RUN_MARKERS = ("unittest", "pytest", "test ", "tests", "npm test", "go test",
+                    "cargo test", "运行测试", "跑了测试")
+ERROR_MARKERS = ("traceback", "error:", "错误", "failed", "拒绝访问",
+                 "不是内部或外部命令", "is not recognized", "未找到", "no such file")
+
+
+# ------------------------------------------------------------------ 工具
+def _norm(s: str) -> str:
+    return str(s or "").replace("\\", "/").strip().lower()
+
+
+def _stem(path: str) -> str:
+    p = _norm(path)
+    for ext in (".md", ".canvas", ".base"):
+        if p.endswith(ext):
+            return p[: -len(ext)]
+    return p
+
+
+def _ext(path: str) -> str:
+    p = _norm(path)
+    i = p.rfind(".")
+    return p[i:] if i >= 0 else ""
+
+
+def _is_note(path: str) -> bool:
+    p = _norm(path)
+    if _ext(p) != ".md":
+        return False
+    if Path(p).name in PINNED:
+        return False
+    return not any(p.startswith(d.lower() + "/") for d in SKIP_DIRS)
+
+
+def _is_attachment(path: str) -> bool:
+    return _ext(path) in ATTACH_EXT
+
+
+def _under(path: str, prefix: str) -> bool:
+    return _norm(path).startswith(_norm(prefix).rstrip("/") + "/")
+
+
+def _finding(mid, area, severity, title, items):
+    return {"id": mid, "area": area, "severity": severity,
+            "title": title, "count": len(items), "items": list(items)}
+
+
+# ------------------------------------------------------------------ 链接解析
+class _Index:
+    """把笔记列表编成"能按路径/文件名/后缀解析链接"的索引。"""
+
+    def __init__(self, files):
+        self.files = list(files)
+        self.by_stem = {}
+        self.names = set()
+        for f in self.files:
+            p = _norm(f.get("path") or f.get("name"))
+            self.by_stem.setdefault(_stem(p), p)
+            self.names.add(_norm(Path(p).name).rsplit(".", 1)[0])
+
+    def resolve(self, link: str) -> bool:
+        key = _stem(link)
+        if not key:
+            return False
+        if key in self.by_stem:
+            return True
+        if key in self.names:
+            return True
+        # 后缀匹配：链接只写文件名，实际文件在子目录
+        for stem in self.by_stem:
+            if stem.endswith("/" + key):
+                return True
+        return False
+
+    def backlinks(self):
+        """返回 {norm_path: 入链数}。"""
+        counts = defaultdict(int)
+        for f in self.files:
+            for link in f.get("links") or []:
+                for target in self._targets_for(link):
+                    counts[target] += 1
+        return counts
+
+    def _targets_for(self, link):
+        key = _stem(link)
+        out = []
+        if key in self.by_stem:
+            out.append(self.by_stem[key])
+        for stem, p in self.by_stem.items():
+            if stem.endswith("/" + key):
+                out.append(p)
+        return out
+
+
+# ------------------------------------------------------------------ Obsidian 检测
+def check_vault(files, checks=None, max_items=15, now=None):
+    """files: vault_index.json 的 files 列表；checks: vault_checks.json 的 summary。"""
+    files = list(files or [])
+    idx = _Index(files)
+    notes = [f for f in files if _is_note(f.get("path") or f.get("name"))]
+    backlinks = idx.backlinks()
+    findings = []
+
+    # 1. 断链 / 改名未修链接
+    broken, rename = [], []
+    for f in notes:
+        for link in f.get("links") or []:
+            lk = str(link).strip()
+            if not lk or lk.startswith("#"):
+                continue
+            if idx.resolve(lk):
+                continue
+            broken.append("%s -> [[%s]]" % (f.get("path"), lk))
+            near = _close_stem(lk, idx)
+            if near:
+                rename.append("%s -> [[%s]] 疑为 [[%s]]" % (f.get("path"), lk, near))
+    if broken:
+        findings.append(_finding("obsidian.broken_link", "obsidian", "high",
+                                 "断链或未解析链接", broken[:max_items]))
+    if rename:
+        findings.append(_finding("obsidian.rename_without_link_repair", "obsidian", "high",
+                                 "改名/移动后未修链接", rename[:max_items]))
+
+    # 2. 缺 frontmatter
+    miss = [f.get("path") for f in notes if not f.get("has_frontmatter")]
+    if miss:
+        findings.append(_finding("obsidian.missing_frontmatter", "obsidian", "high",
+                                 "缺 frontmatter / 属性", miss[:max_items]))
+
+    # 3. 孤立笔记（无出链且无入链）
+    orphans = []
+    for f in notes:
+        p = _norm(f.get("path"))
+        if not (f.get("links") or []) and backlinks.get(p, 0) == 0:
+            orphans.append(f.get("path"))
+    if orphans:
+        findings.append(_finding("obsidian.orphan_note", "obsidian", "medium",
+                                 "孤立笔记无入链也无出链", orphans[:max_items]))
+
+    # 4. 收件箱未分流（无标签）
+    triage = [f.get("path") for f in notes
+              if _under(f.get("path"), "00_Inbox") and not (f.get("tags") or [])]
+    if triage:
+        findings.append(_finding("obsidian.inbox_no_triage", "obsidian", "medium",
+                                 "收件箱条目无标签无法分流", triage[:max_items]))
+
+    # 5. 收件箱堆积（超期）
+    stale = _stale_inbox(notes, now=now)
+    if stale:
+        findings.append(_finding("obsidian.inbox_stale", "obsidian", "high",
+                                 "收件箱长期堆积", stale[:max_items]))
+
+    # 6. 孤立附件（无人引用）
+    referenced = set()
+    for f in files:
+        for link in f.get("links") or []:
+            referenced.add(_norm(Path(_stem(link)).name))
+    orphan_att = []
+    for f in files:
+        p = f.get("path") or f.get("name")
+        if not _is_attachment(p):
+            continue
+        if _norm(Path(_stem(p)).name) not in referenced:
+            orphan_att.append(p)
+    if orphan_att:
+        findings.append(_finding("obsidian.orphan_attachment", "obsidian", "low",
+                                 "附件无人引用", orphan_att[:max_items]))
+
+    # 7. 未提交（来自 checks 摘要）
+    if checks:
+        s = checks.get("summary") if isinstance(checks, dict) else None
+        if isinstance(s, dict) and s.get("uncommitted"):
+            findings.append(_finding("obsidian.uncommitted_vault", "obsidian", "medium",
+                                     "知识库改完未提交 Git",
+                                     ["未提交改动 %s 处" % s.get("uncommitted")]))
+
+    return findings
+
+
+def _stale_inbox(notes, days=14, now=None):
+    now = now or datetime.now(timezone.utc)
+    out = []
+    for f in notes:
+        if not _under(f.get("path"), "00_Inbox"):
+            continue
+        ts = f.get("mtime")
+        if not ts:
+            continue
+        try:
+            dt = datetime.fromtimestamp(float(ts) / 1000.0, tz=timezone.utc)
+        except Exception:
+            continue
+        if now - dt > timedelta(days=days):
+            out.append("%s（%d 天）" % (f.get("path"), (now - dt).days))
+    return out
+
+
+def _close_stem(link, idx, cutoff=0.82):
+    import difflib
+    key = _stem(link)
+    if not key:
+        return None
+    best, score = None, 0.0
+    for stem in idx.by_stem:
+        r = difflib.SequenceMatcher(None, key, stem.rsplit("/", 1)[-1]).ratio()
+        if r > score:
+            best, score = stem, r
+    return best if score >= cutoff else None
+
+
+# ------------------------------------------------------------------ Codex 检测
+def check_turn(ask="", actions="", say=""):
+    """对一轮 Codex 行为做文本级自动检测（保守，宁缺勿滥）。"""
+    act = str(actions or "")
+    out = str(say or "")
+    both = (str(ask or "") + "\n" + act + "\n" + out)
+    findings = []
+
+    # 声称完成但没有对应动作
+    claims = [w for w in DONE_WORDS if w in out]
+    if claims and len(act.strip()) < 40:
+        findings.append(_finding("codex.claim_without_action", "codex", "high",
+                                 "声称完成但没有对应动作",
+                                 ["收尾出现完成词 %s，但本轮动作很少" % "/".join(claims)]))
+    # 改了却不验证
+    if re.search(r"(修改|修复|重构|patch|写入)", both) and not any(m in act.lower() for m in TEST_RUN_MARKERS):
+        findings.append(_finding("codex.no_test_after_change", "codex", "high",
+                                 "改了代码/文档却不验证",
+                                 ["出现改动词，但动作里没有测试/复检标记"]))
+    # 工具报错当成功继续
+    errs = [m for m in ERROR_MARKERS if m in act.lower()]
+    if errs and any(w in out for w in ("完成", "已修复", "通过", "成功", "搞定")):
+        findings.append(_finding("codex.ignored_tool_error", "codex", "high",
+                                 "工具或命令报错却当作成功继续",
+                                 ["动作含错误标记 %s，收尾却称成功" % "/".join(errs)]))
+    # 假装验证
+    if any(w in out for w in ("已验证", "测试通过", "全部通过", "passed", "green")) \
+            and not any(m in act.lower() for m in TEST_RUN_MARKERS):
+        findings.append(_finding("codex.fake_verification", "codex", "high",
+                                 "假装验证：称已验证但没有测试动作",
+                                 ["收尾称已验证，动作里找不到测试运行"]))
+    # 无证据的肯定断言
+    hits = [w for w in CERTAINTY if w in out]
+    if hits:
+        findings.append(_finding("codex.unsupported_certainty", "codex", "medium",
+                                 "无证据却用肯定语气断言",
+                                 ["收尾出现确定词：%s" % "、".join(hits)]))
+    # 重复绕圈：同一命令行重复 >= 3
+    lines = [ln.strip() for ln in act.splitlines() if len(ln.strip()) > 12]
+    dup = [ln for ln, c in _counts(lines).items() if c >= 3]
+    if dup:
+        findings.append(_finding("codex.repeat_loop", "codex", "medium",
+                                 "重复命令/绕圈不收敛",
+                                 ["重复 >=3 次：%s" % d[:120] for d in dup[:5]]))
+    # 自证完成 / 自解除限制
+    if re.search(r"(自行(解除|批准|放行)|给自己(发|开)|self[- ]?(approve|grant))", both, re.I):
+        findings.append(_finding("codex.self_approval", "codex", "critical",
+                                 "自证完成或自行解除限制",
+                                 ["文本出现自行解除限制的表述"]))
+    # 大文件全量读
+    if re.search(r"(cat|type|get-content)\s+\S*(log|日志|\.jsonl|\.json|\.csv)", act, re.I) \
+            and not re.search(r"(tail|select-string|head|尾|检索|-Tail)", act, re.I):
+        findings.append(_finding("codex.token_bloat", "codex", "medium",
+                                 "疑似全量读取大文件或大日志",
+                                 ["动作像在整读日志/大文件，未用尾部或检索"]))
+    return findings
+
+
+def _counts(seq):
+    d = defaultdict(int)
+    for x in seq:
+        d[x] += 1
+    return d
+
+
+# ------------------------------------------------------------------ IO 适配器
+def load_vault_index(path=None):
+    p = Path(path) if path else (DATA_DIR / "vault_index.json")
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+        return d if isinstance(d, list) else list(d.get("files") or [])
+    except Exception:
+        return []
+
+
+def load_vault_checks(path=None):
+    p = Path(path) if path else (DATA_DIR / "vault_checks.json")
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def scan_vault(vault_dir=None, max_files=4000):
+    """读真实知识库，跑全部 auto=yes 的 Obsidian 检查。"""
+    files = load_vault_index()
+    if not files:
+        files = _index_from_dir(Path(vault_dir or VAULT_DIR), max_files=max_files)
+    return check_vault(files, load_vault_checks())
+
+
+def _index_from_dir(root: Path, max_files=4000):
+    out = []
+    if not root or not Path(root).is_dir():
+        return out
+    for i, f in enumerate(Path(root).rglob("*")):
+        if i >= max_files:
+            break
+        if not f.is_file():
+            continue
+        rel = f.relative_to(root).as_posix()
+        if any(part in HARD_SKIP for part in rel.split("/")[:-1]):
+            continue
+        try:
+            text = f.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            text = ""
+        links = [m.group(1).strip() for m in MD_LINK.finditer(text)] if text else []
+        out.append({"path": rel, "name": f.name, "links": links,
+                    "tags": re.findall(r"#([^\s#\[\]]+)", text) if text else [],
+                    "has_frontmatter": text.startswith("---"),
+                    "mtime": f.stat().st_mtime * 1000})
+    return out
+
+
+def run(area=None):
+    """跑一遍。area=None 时只看知识库；回合级 Codex 检测在 judge 里调 check_turn。"""
+    modes = list(load_modes_safe())
+    findings = []
+    if area in (None, "obsidian"):
+        findings += scan_vault()
+    return {"ts": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "modes_total": len(modes),
+            "auto_modes": sum(1 for m in modes if m.get("auto") == "yes"),
+            "findings": findings}
+
+
+def load_modes_safe():
+    try:
+        import failure_modes as FM
+        return FM.load_modes()
+    except Exception:
+        return []
+
+
+def _human(result):
+    fs = result.get("findings") or []
+    if not fs:
+        return "自动检查：未发现 auto=yes 的 Obsidian 问题。"
+    lines = ["自动检查发现 %d 类问题：" % len(fs)]
+    for f in fs:
+        lines.append("· [%s] %s（%d 条）" % (f["severity"], f["title"], f["count"]))
+        for it in f["items"][:5]:
+            lines.append("    - %s" % it)
+    return "\n".join(lines)
+
+
+def main(argv):
+    area = None
+    if "--area" in argv:
+        i = argv.index("--area")
+        if i + 1 < len(argv):
+            area = argv[i + 1]
+    result = run(area=area)
+    if "--human" in argv:
+        print(_human(result))
+    else:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

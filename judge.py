@@ -30,6 +30,7 @@ from urllib.parse import urlparse
 
 from paths import CODEX_HOME as CODEX, RUBRIC_DIR, seed_rubrics, DATA_DIR, APP_DIR
 import failure_modes as FM
+import checkers as CK
 
 # 判据走可写副本（首次运行由 seed_rubrics 播种）
 seed_rubrics()
@@ -572,6 +573,44 @@ def _parse(data):
     return out, checklist
 
 
+# ---------------------------------------------------------------- 自动检查器
+def _auto_violations(ask, actions, say):
+    """把 checkers.py 的确定性检测结果转成违规项（规则标签带【自动】）。"""
+    try:
+        findings = CK.check_turn(ask, actions, say)
+    except Exception:
+        return []
+    if not findings:
+        return []
+    fixmap = {}
+    try:
+        for m in FM.load_modes():
+            fixmap[m.get("id")] = m.get("fix") or ""
+    except Exception:
+        pass
+    out = []
+    for f in findings:
+        out.append({
+            "rule": "[自动]" + str(f.get("title"))[:60],
+            "axis": "自动检查",
+            "evidence": ("；".join(f.get("items") or []))[:400],
+            "fix": str(fixmap.get(f.get("id")) or "")[:400],
+        })
+    return out
+
+
+def _merge_violations(primary, extra):
+    """按 rule 去重合并，自动检查在前（确定性优先）。"""
+    seen, out = set(), []
+    for v in list(extra or []) + list(primary or []):
+        key = str(v.get("rule") or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(v)
+    return out
+
+
 def judge_turn_ex(ask, actions, say):
     """完整结果：{violations, checklist, supervisors}。supervisors 用于界面显示 + 通知。"""
     blob = " ".join([str(ask or ""), str(say or ""), str(actions or "")])
@@ -579,6 +618,7 @@ def judge_turn_ex(ask, actions, say):
     online = check_online(ask, actions, say, sups)
     data = _judge_json(_build_prompt(ask, actions, say, sups, online))
     vs, ck = _parse(data)
+    vs = _merge_violations(vs, _auto_violations(ask, actions, say))
     return {"violations": vs, "checklist": ck, "behavior": _parse_behavior(data),
             "supervisors": [{"id": s.get("id"), "name": s.get("name") or s.get("id")} for s in sups],
             "online": {"needed": bool(online.get("needed")),
