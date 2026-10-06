@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-07
+
+### Changed
+- **结构（A1 完成）**：`supervisor_gui.py` 从 **2611 行降到 902 行**。13 个页面的渲染方法
+  （`pg_home`/`pg_overview`/`pg_trust`/`pg_corr`/`pg_changes`/`pg_logs`/`pg_codex`/`pg_vault`/
+  `pg_classes`/`pg_rules`/`pg_learn`/`pg_pc`/`pg_help`）全部移入新模块 `gui_pages.py` 的
+  `PagesMixin`；`Main` 改为 `class Main(PagesMixin, QMainWindow)`。
+  **方法体一字未改，行为不变**；分 5 批小提交完成。
+  依据（T1）：Python 3 教程 §9.5.1「Multiple Inheritance / MRO」
+  https://docs.python.org/3/tutorial/classes.html
+
+### Added
+- `gui_data.py` —— 界面共享常量（路径 + 大白话词表），消除循环依赖。
+
 ## [0.1.1] - 2026-10-07
 
 ### Fixed
