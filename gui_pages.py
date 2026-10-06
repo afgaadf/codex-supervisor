@@ -819,8 +819,9 @@ class PagesMixin:
         try:
             import plugins_status as PS
             _st = PS.codex_status()
-            f, bv = card(v, "Codex 监督插件",
-                         "让 Codex 在声称完成前先找管家自查；插件把状态汇报到这里。")
+            f, bv = card(v, "Codex 侧插件（装在 Codex 里）",
+                         "让 Codex 在声称完成/已验证前先找管家自查；插件把状态汇报到这里。")
+            line(bv, "装上没", _st.get("installed_into"), t, 170)
             line(bv, "状态", "%s ｜ %s" % (_st.get("state"), _st.get("note")), t, 160)
             line(bv, "版本", _st.get("version") or "—", t, 60)
             line(bv, "最近汇报", "%s ｜ %s" % (_st.get("last_run"), _st.get("summary") or "—"), t, 160)
@@ -938,8 +939,9 @@ class PagesMixin:
         try:
             import plugins_status as PS
             _st = PS.obsidian_status()
-            f, bv = card(v, "Obsidian 管家插件",
-                         "装进知识库后，体检改在 Obsidian 进程内跑：更快、有事件驱动；结果汇报到这里。")
+            f, bv = card(v, "Obsidian 侧插件（装在你的知识库里）",
+                         "接到管家（桥）+ 在 Obsidian 进程内体检，一次扫描两个出口。")
+            line(bv, "装上没", _st.get("installed_into"), t, 170)
             line(bv, "状态", "%s ｜ %s" % (_st.get("state"), _st.get("note")), t, 160)
             line(bv, "版本", _st.get("version") or "—", t, 60)
             line(bv, "最近汇报", "%s ｜ %s" % (_st.get("last_run"), _st.get("summary") or "—"), t, 160)

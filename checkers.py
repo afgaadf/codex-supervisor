@@ -312,6 +312,12 @@ def check_turn(ask="", actions="", say=""):
         findings.append(_finding("codex.unbounded_retry", "codex", "medium",
                                  "同一失败无上限重试不换策略",
                                  ["同一命令重复且出现重试口吻：%s" % d[:120] for d in rep2[:5]]))
+    # 可能把用户锁在外面，却没提恢复通道
+    if re.search(r"(禁用|关闭|锁定|阻断|卸载|停止服务|不再允许)", both) and not re.search(
+            r"(恢复|回滚|rollback|rescue|撤销|退回|卸载方法|退路)", both, re.I):
+        findings.append(_finding("codex.irreversible_lockout", "codex", "critical",
+                                 "改动可能把用户锁在外面且没有恢复通道",
+                                 ["文本提到禁用/阻断类改动，但没提恢复或回滚办法"]))
     # 声称已核对但没有核对动作
     if re.search(r"(已核对|已确认|检查过了|确认无误|已验证)", out) and not re.search(
             r"(read|type |cat |get-content|rg |grep|select-string|diff|比较|比对|打开)", act, re.I):
@@ -628,6 +634,55 @@ def check_vault_text(root=None, max_files=4000, max_items=15):
     return findings
 
 
+# ------------------------------------------------------------------ 插件状态检测
+def check_vault_plugins(vault_dir=None, max_items=15):
+    """比对「启用清单」与「实际安装目录」。
+
+    这是"以为在跑、其实没跑"的那类静默失效：
+      · 清单里有、目录没有 -> 插件根本没装（启用了个空气）
+      · 目录有、清单里没有 -> 插件被静默禁用
+    """
+    vault = Path(vault_dir or VAULT_DIR)
+    obs = vault / ".obsidian"
+    pdir = obs / "plugins"
+    if not pdir.is_dir():
+        return []
+    try:
+        enabled_raw = json.loads((obs / "community-plugins.json").read_text(encoding="utf-8"))
+        enabled = [str(x) for x in enabled_raw] if isinstance(enabled_raw, list) else []
+    except Exception:
+        enabled = []
+    installed = sorted(d.name for d in pdir.iterdir() if d.is_dir() and not d.name.startswith("."))
+
+    ghost = [x for x in enabled if x not in installed]          # 启用了但没装
+    disabled = [x for x in installed if x not in enabled]       # 装了但没启用
+
+    findings = []
+    if ghost:
+        findings.append(_finding("obsidian.plugin_disabled_unnoticed", "obsidian", "high",
+                                 "插件被静默禁用/缺失却以为在跑",
+                                 ["启用清单里有、但目录里找不到：%s" % "、".join(ghost[:max_items])]))
+    return findings
+
+
+def plugin_status(vault_dir=None, max_items=20):
+    """给界面用：两个清单的对照结果（只读）。"""
+    vault = Path(vault_dir or VAULT_DIR)
+    obs = vault / ".obsidian"
+    pdir = obs / "plugins"
+    try:
+        enabled = json.loads((obs / "community-plugins.json").read_text(encoding="utf-8"))
+        enabled = [str(x) for x in enabled] if isinstance(enabled, list) else []
+    except Exception:
+        enabled = []
+    installed = sorted(d.name for d in pdir.iterdir() if d.is_dir() and not d.name.startswith(".")) \
+        if pdir.is_dir() else []
+    return {"enabled": enabled, "installed": installed[:max_items],
+            "ghost": [x for x in enabled if x not in installed],
+            "disabled": [x for x in installed if x not in enabled],
+            "installed_total": len(installed)}
+
+
 # ------------------------------------------------------------------ IO 适配器
 def load_vault_index(path=None):
     p = Path(path) if path else (DATA_DIR / "vault_index.json")
@@ -654,7 +709,8 @@ def scan_vault(vault_dir=None, max_files=4000):
         files = _index_from_dir(root, max_files=max_files)
     return (check_vault(files, load_vault_checks())
             + check_vault_content(root, max_files=max_files)
-            + check_vault_text(root, max_files=max_files))
+            + check_vault_text(root, max_files=max_files)
+            + check_vault_plugins(root))
 
 
 def _index_from_dir(root: Path, max_files=4000):

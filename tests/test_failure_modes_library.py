@@ -19,13 +19,13 @@ class FailureModesLibraryTest(unittest.TestCase):
     def test_describe_reports_full_registry_without_errors(self):
         info = FM.describe()
         self.assertEqual(info["errors"], [])
-        self.assertEqual(info["total"], 80)
-        self.assertEqual(info["codex"], 40)
-        self.assertEqual(info["obsidian"], 40)
+        self.assertEqual(info["total"], 84)
+        self.assertEqual(info["codex"], 42)
+        self.assertEqual(info["obsidian"], 42)
 
     def test_ids_unique_and_every_source_nonempty(self):
         rows = FM.load_modes()
-        self.assertEqual(len(rows), 80)
+        self.assertEqual(len(rows), 84)
         ids = [str(r.get("id") or "") for r in rows]
         self.assertEqual(len(ids), len(set(ids)), "失败模式 id 必须唯一")
         for r in rows:

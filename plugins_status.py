@@ -31,9 +31,24 @@ CODEX_SKILL_DIR = CODEX_HOME / "skills" / "codex-supervisor"
 OBSIDIAN_PLUGIN_ID = "codex-supervisor"
 OBSIDIAN_PLUGIN_FILES = ("manifest.json", "main.js", "styles.css")
 
+# 两个插件分别装在不同的软件里 —— 名字里就写清楚，别让人猜。
 PLUGINS = {
-    "codex": {"name": "Codex 监督插件", "area": "codex"},
-    "obsidian": {"name": "Obsidian 管家插件", "area": "obsidian"},
+    "codex": {
+        "name": "Codex 侧插件",
+        "area": "codex",
+        "side": "codex",
+        "host": "Codex",
+        "installed_into": "Codex（技能目录 ~/.codex/skills + config.toml 里的 MCP 注册）",
+        "what": "让 Codex 在声称完成/已验证前先找管家自查",
+    },
+    "obsidian": {
+        "name": "Obsidian 侧插件",
+        "area": "obsidian",
+        "side": "obsidian",
+        "host": "Obsidian",
+        "installed_into": "Obsidian（知识库里的 .obsidian/plugins/codex-supervisor/）",
+        "what": "把知识库接到管家（桥）+ 在 Obsidian 内做体检并写报告",
+    },
 }
 
 
@@ -94,6 +109,22 @@ def codex_status():
     return {
         "plugin": "codex",
         "name": PLUGINS["codex"]["name"],
+        "side": PLUGINS["codex"]["side"],
+        "host": PLUGINS["codex"]["host"],
+        "installed_into": PLUGINS["codex"]["installed_into"],
+        "what": PLUGINS["codex"]["what"],
+        "side": PLUGINS["codex"]["side"],
+        "host": PLUGINS["codex"]["host"],
+        "installed_into": PLUGINS["codex"]["installed_into"],
+        "what": PLUGINS["codex"]["what"],
+        "side": PLUGINS["codex"]["side"],
+        "host": PLUGINS["codex"]["host"],
+        "installed_into": PLUGINS["codex"]["installed_into"],
+        "what": PLUGINS["codex"]["what"],
+        "side": PLUGINS["codex"]["side"],
+        "host": PLUGINS["codex"]["host"],
+        "installed_into": PLUGINS["codex"]["installed_into"],
+        "what": PLUGINS["codex"]["what"],
         "state": state,
         "note": note,
         "installed": bool(skill_installed or report),
@@ -129,6 +160,22 @@ def obsidian_status(vault_dir=None):
     return {
         "plugin": "obsidian",
         "name": PLUGINS["obsidian"]["name"],
+        "side": PLUGINS["obsidian"]["side"],
+        "host": PLUGINS["obsidian"]["host"],
+        "installed_into": PLUGINS["obsidian"]["installed_into"],
+        "what": PLUGINS["obsidian"]["what"],
+        "side": PLUGINS["obsidian"]["side"],
+        "host": PLUGINS["obsidian"]["host"],
+        "installed_into": PLUGINS["obsidian"]["installed_into"],
+        "what": PLUGINS["obsidian"]["what"],
+        "side": PLUGINS["obsidian"]["side"],
+        "host": PLUGINS["obsidian"]["host"],
+        "installed_into": PLUGINS["obsidian"]["installed_into"],
+        "what": PLUGINS["obsidian"]["what"],
+        "side": PLUGINS["obsidian"]["side"],
+        "host": PLUGINS["obsidian"]["host"],
+        "installed_into": PLUGINS["obsidian"]["installed_into"],
+        "what": PLUGINS["obsidian"]["what"],
         "state": state,
         "note": note,
         "installed": bool(installed),

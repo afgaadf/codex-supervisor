@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "updated": "2026-10-07",
   "note": "可机读失败模式库。auto=yes/partial/manual；source 为证据出处或项目经验标注。",
   "modes": [
@@ -1312,6 +1312,73 @@
       "fix": "挂进对应 MOC 或索引",
       "source": "项目经验（非权威，库规）",
       "auto": "partial"
+    },
+    {
+      "id": "codex.irreversible_lockout",
+      "area": "codex",
+      "title": "改动可能把用户锁在外面且没有恢复通道",
+      "severity": "critical",
+      "triggers": [
+        "禁用",
+        "关闭",
+        "锁定",
+        "阻断",
+        "不再允许",
+        "停止服务",
+        "卸载"
+      ],
+      "detect": "制造了可能让人进不去的状态，却没有给恢复入口或回滚步骤",
+      "fix": "先做恢复通道并验证它能用，再上线限制",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.no_rescue_path",
+      "area": "codex",
+      "title": "做了会卡死的改动却没留自救办法",
+      "severity": "high",
+      "triggers": [
+        "卡死",
+        "锁住",
+        "无法恢复",
+        "只能重装"
+      ],
+      "detect": "改动的失败代价是卡死，但没有一键恢复和验证过的退路",
+      "fix": "留一键恢复入口并真跑一次，写进交接",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "manual"
+    },
+    {
+      "id": "obsidian.plugin_conflict",
+      "area": "obsidian",
+      "title": "两个插件做同一件事，重复扫描",
+      "severity": "medium",
+      "triggers": [
+        "插件",
+        "重复",
+        "冲突",
+        "扫描"
+      ],
+      "detect": "同一库里两个插件功能重叠，重复扫盘、结果互相覆盖",
+      "fix": "合并成一个插件",
+      "source": "项目经验（非权威，库规）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.plugin_disabled_unnoticed",
+      "area": "obsidian",
+      "title": "插件被静默禁用/缺失却以为在跑",
+      "severity": "high",
+      "triggers": [
+        "插件",
+        "启用",
+        "禁用",
+        "没生效"
+      ],
+      "detect": "启用清单与实际安装目录不一致：以为在跑的插件其实没跑",
+      "fix": "对齐启用清单与安装目录，并在界面显示真实状态",
+      "source": "项目经验（非权威，库规）",
+      "auto": "yes"
     }
   ]
 }
