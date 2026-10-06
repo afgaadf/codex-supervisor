@@ -45,6 +45,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFrame, QHBoxLay
 import supervisor_ui as ui
 from gui_util import (RANK, elide, fmt_bytes, hhmmss, read_json, safe, tail_jsonl,
                       worse, _alive, _set_text, _set_enabled)   # Stage 2a 拆出的纯工具
+from version import __version__
 from gui_widgets import (LEVELS, chip, tag, card, line, empty, kpi, four_verdict,
                           fresh, ToolTile, Sparkline, page_header)   # Stage 2b 拆出的小部件
 
@@ -315,7 +316,7 @@ class Main(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("管家")
+        self.setWindowTitle("管家 v%s" % __version__)
         if ICON.exists():
             self.setWindowIcon(QIcon(str(ICON)))
         self.st = load_settings()

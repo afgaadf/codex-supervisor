@@ -166,3 +166,9 @@ psutil 官方文档（本机未安装，仅作能力对照）。详见 `事实�
   1. 每步一个自洽的小提交（Google《Small CLs》）。
   2. 改完先跑测试再提交（Fowler《Continuous Integration》）。
   3. 注意：改 `supervisor_gui.py` **要重启窗口才生效**（`fresh()` 只热重载别的模块）。
+
+### 版本与变更日志（2026-10-07 起）
+
+- 版本号在 `version.py`（SemVer，当前 `0.1.0`；0.y.z = 初始开发）。窗口标题会显示它。
+- 重要变更记在 `CHANGELOG.md`（Keep a Changelog 格式，最新在上）。
+- 提交信息用 Conventional Commits（`feat` / `fix` / `refactor` / `test` / `docs` / `chore`）。

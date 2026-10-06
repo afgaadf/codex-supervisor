@@ -1,0 +1,35 @@
+# 变更日志
+
+本文件记录「管家」的重要变更。
+格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+版本号遵循 [语义化版本 2.0.0](https://semver.org/lang/zh-CN/)。
+
+## [Unreleased]
+
+## [0.1.0] - 2026-10-07
+
+首个纳入版本控制、并带自动化测试的版本。
+
+### Added
+- 版本控制：`git` 仓库、`.gitignore`、`.gitattributes`（统一 LF）。
+- 自动化测试：`tests/`，共 34 条，全部用标准库 `unittest`（零第三方依赖）。
+  - `test_widget_lifetime.py`：控件生命周期（含缺陷复现）。
+  - `test_codex_trust.py`：官方哈希引擎契约（13 条）。
+  - `test_gui_util.py`：纯工具函数（13 条）。
+  - `test_gui_smoke.py`：离屏建界面并逐页渲染 13 页。
+- 模块拆分：`gui_util.py`（纯工具）、`gui_widgets.py`（Qt 小部件工厂）。
+- `CHANGELOG.md`、`version.py`、`欠账登记.md`。
+- README 增补「开发与测试」一节。
+
+### Changed
+- `supervisor_gui.py` 从 2611 行拆到 2136 行（纯工具与小部件各归其位，按原名再导出）。
+- 窗口标题显示版本号。
+
+### Fixed
+- 界面刷新销毁控件后，后台线程回调再访问导致的
+  `RuntimeError: libshiboken: Internal C++ object ... already deleted`
+  （改用 `shiboken6.isValid` 判活，替换掉吞异常的 `try/except`）。
+- 后台线程（`pc_bg` / 联网查证）引用被回收的隐患：改为列表持有引用。
+
+### Removed
+- `corrections.json` 移出版本库（每轮追加的运行期载荷，可由 `rules_hard.json` 复现）。
