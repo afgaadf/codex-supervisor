@@ -935,68 +935,6 @@ class Main(PagesMixin, QMainWindow):
             line(bv, hhmmss(ts), "%s　%s" % (what, elide(detail, 70)), t, 110)
 
     # -------------------------------------------------- 小工具信任
-    def pg_trust(self, v):
-        page_header(v, "小工具信任", "点了才执行；脚本改过就失效", self.t)
-        t, d = self.t, self.data
-        hooks = d.get("hooks") or []
-        need = d.get("need_hooks") or []
-        f, bv = card(v, "Codex 能自动运行的小工具",
-                     "按 Codex 官方算法重算；点过才执行")
-        head = QWidget()
-        h = QHBoxLayout(head)
-        h.setContentsMargins(0, 0, 0, 0)
-        h.addWidget(tag("%d 条：%d 已信任，%d 待处理" % (len(hooks), len(hooks) - len(need), len(need)),
-                        t, "ok" if not need else "w"))
-        h.addStretch(1)
-        for shape, text in (("✔", "已信任"), ("＋", "新增·未信任"), ("✎", "被改动·需重信任")):
-            h.addWidget(QLabel("%s %s" % (shape, text)))
-        bv.addWidget(head)
-
-        tbl = QTableWidget(len(hooks), 3)
-        tbl.setHorizontalHeaderLabels(["什么时候跑", "什么工具", "状态"])
-        tbl.verticalHeader().setVisible(False)
-        tbl.setSelectionBehavior(QAbstractItemView.SelectRows)
-        tbl.setSelectionMode(QAbstractItemView.SingleSelection)
-        tbl.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        tbl.setAlternatingRowColors(True)
-        tbl.setSortingEnabled(True)
-        tbl.setMinimumHeight(min(400, 34 + 26 * max(3, len(hooks))))
-        hh = tbl.horizontalHeader()
-        hh.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        hh.setSectionResizeMode(1, QHeaderView.Stretch)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        for i, hk in enumerate(hooks):
-            mark = {"trusted": "✔ 已信任", "new": "＋ 新增·未信任"}.get(hk.get("status"), "✎ 被改动·需重信任")
-            when = "%s" % hk.get("event_label")
-            if hk.get("matcher"):
-                when += " · %s" % hk.get("matcher")
-            a = QTableWidgetItem(when)
-            a.setData(Qt.UserRole, hk.get("key"))
-            tbl.setItem(i, 0, a)
-            tbl.setItem(i, 1, QTableWidgetItem(elide(hk.get("command"), 120)))
-            tbl.setItem(i, 2, QTableWidgetItem(mark))
-        tbl.itemSelectionChanged.connect(self.on_trust_sel)
-        bv.addWidget(tbl)
-
-        row = QWidget()
-        h = QHBoxLayout(row)
-        h.setContentsMargins(0, 0, 0, 0)
-        self.btn_trust = QPushButton("信任 / 同意")
-        self.btn_trust.setObjectName("primary")
-        self.btn_trust.setEnabled(False)
-        self.btn_trust.clicked.connect(self.do_trust)
-        self.btn_revoke = QPushButton("撤销信任")
-        self.btn_revoke.setEnabled(False)
-        self.btn_revoke.clicked.connect(self.do_revoke)
-        h.addWidget(self.btn_trust)
-        h.addWidget(self.btn_revoke)
-        self.lbl_trust = QLabel("选中一行再点按钮。")
-        self.lbl_trust.setObjectName("muted")
-        h.addSpacing(8)
-        h.addWidget(self.lbl_trust, 1)
-        bv.addWidget(row)
-        line(bv, "信任写哪", "C:\\Users\\taich\\.codex\\config.toml → [hooks.state.*] trusted_hash", t, 120)
-        line(bv, "为什么", "只有你能点，AI 没有令牌", t, 120)
 
     def on_trust_sel(self):
         tbl = self.sender()
@@ -1040,40 +978,6 @@ class Main(PagesMixin, QMainWindow):
         self.refresh()
 
     # -------------------------------------------------- 责令改正
-    def pg_corr(self, v):
-        page_header(v, "责令改正", "改完自动核销", self.t)
-        t, d = self.t, self.data
-        corr = d.get("corr") or []
-        f, bv = card(v, "责令改正（%d）" % len(corr),
-                     "留着会一直提醒 AI；划掉就不再提")
-        if not corr:
-            empty(bv, "没有未完成的整改要求。")
-        for c in corr:
-            box = QFrame()
-            box.setStyleSheet("border-top:1px solid %s;" % t["line"])
-            b = QVBoxLayout(box)
-            b.setContentsMargins(0, 10, 0, 6)
-            a = QLabel("第 %s 轮：%s" % (elide(c.get("turn") or "—", 12), elide(c.get("ask") or "（没记下问题）", 80)))
-            a.setWordWrap(True)
-            b.addWidget(a)
-            for x in (c.get("violations") or [])[:3]:
-                s = QLabel("· %s" % elide(x.get("what") or x.get("title") or str(x), 100))
-                s.setObjectName("small")
-                s.setWordWrap(True)
-                b.addWidget(s)
-            row = QWidget()
-            h = QHBoxLayout(row)
-            h.setContentsMargins(0, 0, 0, 0)
-            h.addStretch(1)
-            keep = QPushButton("继续责令")
-            keep.setObjectName("primary")
-            keep.clicked.connect(lambda _=False, dd=c: self.keep_corr(dd))
-            dis = QPushButton("划掉，不再责令")
-            dis.clicked.connect(lambda _=False, dd=c: self.dismiss_corr(dd))
-            h.addWidget(keep)
-            h.addWidget(dis)
-            b.addWidget(row)
-            bv.addWidget(box)
 
     def keep_corr(self, _d):
         try:
@@ -1090,37 +994,6 @@ class Main(PagesMixin, QMainWindow):
         self.refresh()
 
     # -------------------------------------------------- 改监督者的申请
-    def pg_changes(self, v):
-        page_header(v, "改监督者的申请", "要你同意才动，先备份", self.t)
-        t, d = self.t, self.data
-        chs = d.get("changes") or []
-        f, bv = card(v, "改监督者的申请（%d）" % len(chs),
-                     "它自己动手前会先备份")
-        if not chs:
-            empty(bv, "没有等你决定的提案。")
-        for c in chs:
-            box = QFrame()
-            box.setStyleSheet("border-top:1px solid %s;" % t["line"])
-            b = QVBoxLayout(box)
-            b.setContentsMargins(0, 10, 0, 6)
-            a = QLabel(elide(c.get("title") or c.get("id"), 100))
-            b.addWidget(a)
-            line(b, "提案人", str(c.get("by") or "—"), t, 60)
-            line(b, "为什么", str(c.get("why") or "—"), t, 100)
-            line(b, "要动", "、".join(str(x) for x in (c.get("files") or [])), t, 80)
-            row = QWidget()
-            h = QHBoxLayout(row)
-            h.setContentsMargins(0, 0, 0, 0)
-            h.addStretch(1)
-            ok = QPushButton("同意并应用")
-            ok.setObjectName("primary")
-            ok.clicked.connect(lambda _=False, dd=c: self.apply_change(dd))
-            no = QPushButton("拒绝")
-            no.clicked.connect(lambda _=False, dd=c: self.reject_change(dd))
-            h.addWidget(ok)
-            h.addWidget(no)
-            b.addWidget(row)
-            bv.addWidget(box)
 
     def apply_change(self, d):
         rid = str(d.get("id") or "")
@@ -1143,69 +1016,6 @@ class Main(PagesMixin, QMainWindow):
             self.say("拒绝失败：%s" % e)
 
     # -------------------------------------------------- 告警与审计
-    def pg_logs(self, v):
-        page_header(v, "告警与审计", "异常 + 你的决定", self.t, [("刷新", self.refresh)])
-        t, d = self.t, self.data
-        f, bv = card(v, "告警", "只记异常")
-        alerts = d.get("alerts") or []
-        if not alerts:
-            empty(bv, "没有告警。")
-        for a in reversed(alerts[-8:]):
-            line(bv, hhmmss(a.get("ts")), "%s　%s" % (ALERT_ZH.get(a.get("kind"), a.get("kind")),
-                                                          elide(a.get("detail"), 80)), t, 110)
-
-        f, bv = card(v, "审计", "只能追加，不能改")
-        audit = d.get("audit") or []
-        if not audit:
-            empty(bv, "还没有审计记录。")
-        for a in reversed(audit[-12:]):
-            line(bv, hhmmss(a.get("ts")), "%s　%s" % (AUDIT_ZH.get(a.get("action"), a.get("action")),
-                                                          elide(a.get("key") or a.get("files") or "", 70)), t, 110)
-
-        f, bv = card(v, "判断记录", "做了没有 · 按标准做没有 · 敷衍没有")
-        judged = d.get("judged") or []
-        if not judged:
-            empty(bv, "还没有判断记录。")
-        for j in reversed(judged[-6:]):
-            vv = j.get("violations") or []
-            onl = j.get("online") or {}
-            box = QVBoxLayout()
-            box.setSpacing(2)
-            row = QWidget()
-            h = QHBoxLayout(row)
-            h.setContentsMargins(0, 0, 0, 0)
-            h.addWidget(chip("NORMAL" if not vv else "WATCH", t))
-            h.addWidget(QLabel(hhmmss(j.get("ts"))))
-            lab = QLabel("问：%s　·　%s" % (elide(j.get("ask"), 40),
-                                           ("%d 条违规" % len(vv)) if vv else "没发现违规"))
-            lab.setWordWrap(True)
-            h.addWidget(lab, 1)
-            box.addWidget(row)
-            if onl.get("needed"):
-                c = onl.get("tier_counts") or {}
-                txt = "联网核实：%s　·　T1×%d T2×%d T3×%d T4×%d" % (
-                    onl.get("verdict") or ("已核查" if onl.get("ok") else "没查成"),
-                    c.get("T1", 0), c.get("T2", 0), c.get("T3", 0), c.get("T4", 0))
-                gaps = onl.get("gaps") or []
-                if gaps:
-                    txt += "　·　缺口 %d 条（%s）" % (len(gaps), elide(gaps[0], 40))
-                l2 = QLabel(elide(txt, 150))
-                l2.setObjectName("small")
-                l2.setWordWrap(True)
-                l2.setMinimumWidth(0)
-                l2.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-                box.addWidget(l2)
-                for src in (onl.get("sources") or [])[:2]:
-                    url = src.get("url") if isinstance(src, dict) else str(src)
-                    if not url:
-                        continue
-                    b = QPushButton("%s ↗ %s" % ((src.get("tier_name") if isinstance(src, dict) else "来源") or "来源",
-                                                 elide(url, 58)))
-                    b.setObjectName("link")
-                    b.setCursor(Qt.PointingHandCursor)
-                    b.clicked.connect(lambda _=False, u=url: QDesktopServices.openUrl(QUrl(u)))
-                    box.addWidget(b)
-            bv.addLayout(box)
 
     # -------------------------------------------------- Codex 监管
     def pg_codex(self, v):
