@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """supervisor_gui.py —— 监督者界面（PySide6，2026-10-06 重新设计版）。
 
 设计规则见 `设计依据.md`（7 条，全部指得到出处）。信息架构：
@@ -23,15 +23,18 @@ import traceback
 from pathlib import Path
 from string import Template
 
-APP_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(APP_DIR))
+_HERE = Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+
+from gui_data import (ALERT_ZH, APP_DIR, AUDIT_ZH, GLOSSARY, GLOSSARY_LONG,  # noqa: E402
+                      SIZE_HIST)
 
 LOG_DIR = APP_DIR / "logs"
 HEARTBEAT = LOG_DIR / "app.heartbeat"     # 看门狗靠它判断"窗口还在"
 STOPPED = LOG_DIR / "app.stopped"         # 你主动退出 → 看门狗不再拉起
 SETTINGS = APP_DIR / "settings.json"
 ICON = APP_DIR / "home.ico"          # 电脑管家图标（盾+勾）
-SIZE_HIST = LOG_DIR / "size_history.jsonl"
 
 from PySide6.QtCore import QPointF, Qt, QThread, QTimer, Signal, QUrl
 from PySide6.QtGui import (QColor, QDesktopServices, QFont, QIcon, QKeySequence, QPainter, QPen,
@@ -44,10 +47,10 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFrame, QHBoxLay
 
 import supervisor_ui as ui
 from gui_util import (RANK, elide, fmt_bytes, hhmmss, read_json, safe, tail_jsonl,
-                      worse, _alive, _set_text, _set_enabled)   # Stage 2a 拆出的纯工具
+                      worse, _alive, _set_text, _set_enabled, fresh, _load_pc_state)
 from version import __version__
 from gui_widgets import (LEVELS, chip, tag, card, line, empty, kpi, four_verdict,
-                          fresh, ToolTile, Sparkline, page_header)   # Stage 2b 拆出的小部件
+                          ToolTile, Sparkline, page_header)   # Stage 2b 拆出的小部件
 
 
 # ============================================================ 主题 token
@@ -68,61 +71,6 @@ TOKENS = {
         bf="#ff9f9f", bb="#401a1c",
     ),
 }
-
-GLOSSARY_LONG = {
-    "判定等级": "AI 现在干活的整体状态：正常 / 观察 / 降智风险 / 已阻断",
-    "降智风险": "AI 开始糊弄、绕圈、说了没做的信号，分数越高越糟",
-    "记录大小": "这个会话的记录文件多大，越大越接近上下文撑爆",
-    "已跑轮次": "这个会话来回多少轮；括号里是跑了多少条命令、报了几次错",
-    "待你处理": "等你拍板的事：没信任的小工具 / 责令改正 / 改监督者的申请",
-    "断链": "点进去打不开的链接：笔记改名或删了，别处还在引用它",
-    "缺 frontmatter": "笔记最上面那段 --- 包起来的元数据（标题/日期/标签）缺了，机器读不懂",
-    "收件箱堆积": "丢进 00_Inbox 却一直没归类的笔记",
-    "未提交": "改完没存进版本库（Git），出事回不到上一版",
-    "小工具信任": "允许 Codex 自动跑某个脚本的许可；脚本被改过，许可就失效",
-    "责令改正": "监督者抓到的问题，会一直提醒 AI 改，直到改完或你划掉",
-    "改监督者的申请": "想改监督者自己的代码或规则，只能提案，必须你同意",
-    "审计": "谁在什么时候同意/撤销/应用了什么，只能追加、不能改",
-    "误报率": "你划掉的责令改正 ÷ 它报的全部问题；越低说明它判得越准",
-    "教训": "你划掉/拒绝时留下的记录，下一轮判分时会带上，免得再冤枉你",
-    "候选教训": "它自己扫日志发现的规律，要你点头才生效",
-    "CPU": "处理器忙碌程度（瞬时值，看趋势更准）",
-    "内存": "内存用了多少；长期 85% 以上会变慢",
-    "C 盘剩余": "系统盘剩多少空间；低于 10% 会拖慢库同步和 Git",
-    "管家评分": "本机环境健康分（100 满分，只作辅助参考）",
-}
-
-
-# 界面上的专业名词 → 下方那行大白话
-GLOSSARY = {
-    "判定等级": "AI 整体状态",
-    "降智风险": "AI 在糊弄的信号",
-    "记录大小": "对话记录多大",
-    "已跑轮次": "来回多少轮",
-    "待你处理": "等你拍板的事",
-    "断链": "打不开的链接",
-    "缺 frontmatter": "笔记顶部元数据",
-    "收件箱堆积": "没归类的笔记",
-    "未提交": "没存进 Git",
-    "小工具信任": "自动跑脚本的许可",
-    "责令改正": "要 AI 改的问题",
-    "改监督者的申请": "改它自己要先过你",
-    "审计": "谁改过什么",
-    "误报率": "划掉 ÷ 报出",
-    "教训": "你划掉的理由",
-    "候选教训": "待你点头的新规律",
-    "CPU": "处理器忙不忙",
-    "内存": "内存占用",
-    "C 盘剩余": "系统盘空间",
-    "管家评分": "本机健康分",
-}
-
-ALERT_ZH = {"level_change": "等级变化", "supervisor_stale": "内部监督者停摆",
-            "supervisor_on": "启用监管者", "tool_error": "工具报错"}
-AUDIT_ZH = {"app_start": "窗口启动", "trust": "你同意了小工具", "revoke": "你取消了同意",
-            "deny": "你拒绝了一次申请", "request": "收到一次申请",
-            "change_request": "有人申请改监督者", "change_applied": "你同意并应用了改监督者",
-            "change_rejected": "你拒绝了改监督者", "conv_close": "你关闭了一个对话"}
 
 CSS_T = Template("""
 QWidget { color: $text; font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif; font-size: 10pt; }

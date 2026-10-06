@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from gui_data import APP_DIR
+
 RANK = {"NORMAL": 0, "WATCH": 1, "DEGRADED": 2, "BLOCKED": 3}
 
 
@@ -109,3 +111,30 @@ def _set_enabled(w, on):
     """安全启用/禁用控件：控件已销毁就跳过。"""
     if _alive(w):
         w.setEnabled(on)
+
+
+def fresh(modname):
+    """按文件 mtime 就地重载模块 —— 避免"改了代码但窗口还跑旧逻辑"。"""
+    import importlib
+    import sys as _sys
+    m = _sys.modules.get(modname)
+    if m is None:
+        return __import__(modname)
+    try:
+        f = Path(getattr(m, "__file__", ""))
+        if f.exists():
+            mt = f.stat().st_mtime
+            if mt > float(getattr(m, "_loaded_mtime", 0) or 0):
+                m = importlib.reload(m)
+                m._loaded_mtime = mt
+    except Exception:
+        pass
+    return m
+
+
+def _load_pc_state():
+    try:
+        import json as _j
+        return _j.loads((APP_DIR / "pc_state.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {}

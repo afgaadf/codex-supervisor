@@ -12,6 +12,7 @@ from PySide6.QtGui import QColor, QDesktopServices, QFont, QPainter, QPen
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy,
                                QVBoxLayout, QWidget)
 
+from gui_data import GLOSSARY, GLOSSARY_LONG
 from gui_util import elide
 
 
@@ -167,25 +168,6 @@ def four_verdict(check, kind):
     return bad, ("是" if bad else "否"), str(c.get("evidence") or "")
 
 
-def fresh(modname):
-    """按文件 mtime 就地重载模块 —— 避免"改了代码但窗口还跑旧逻辑"。"""
-    import importlib
-    import sys as _sys
-    m = _sys.modules.get(modname)
-    if m is None:
-        return __import__(modname)
-    try:
-        f = Path(getattr(m, "__file__", ""))
-        if f.exists():
-            mt = f.stat().st_mtime
-            if mt > float(getattr(m, "_loaded_mtime", 0) or 0):
-                m = importlib.reload(m)
-                m._loaded_mtime = mt
-    except Exception:
-        pass
-    return m
-
-
 class ToolTile(QFrame):
     """工具箱里的一格：名字 + 一句说明 + 状态，点一下进对应工具。"""
     clicked = Signal()
@@ -280,14 +262,6 @@ class Sparkline(QWidget):
         pt.drawText(110, 14, "内存 %s%%" % last.get("mem"))
         pt.setPen(QPen(QColor(t["faint"])))
         pt.drawText(w - 150, 14, "首点 %s" % str(self.points[0].get("ts") or "")[11:16])
-
-
-def _load_pc_state():
-    try:
-        import json as _j
-        return _j.loads((APP_DIR / "pc_state.json").read_text(encoding="utf-8"))
-    except Exception:
-        return {}
 
 
 def page_header(parent, title, subtitle, tokens, actions=None):

@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-07
+
+### Fixed
+- **Stage 2b 拆分引入的回归（本次自查发现并修复）**：`supervisor_gui.py` 调用了被搬到
+  `gui_widgets.py` 的 `_load_pc_state`；`gui_widgets.py` 里又用到未导入的
+  `GLOSSARY` / `GLOSSARY_LONG` / `APP_DIR` / `Path` —— 结果是 **home、pc 等页面在渲染时抛 `NameError`**。
+  修法：抽出 `gui_data.py` 统一存放共享常量；`fresh` / `_load_pc_state` 归位到 `gui_util.py`。
+- 上述缺陷**编译期查不出来**，而原冒烟测试只验"能切到那一页"、没验"页面真的渲染成功"，所以漏检。
+  已把冒烟测试改为：拦截 `_log`，断言没有任何"页面渲染失败"。
+- 新增静态守卫测试 `tests/test_no_undefined_names.py`，把"用了却没定义/没导入的名字"挡在提交前。
+
 ## [0.1.0] - 2026-10-07
 
 首个纳入版本控制、并带自动化测试的版本。
