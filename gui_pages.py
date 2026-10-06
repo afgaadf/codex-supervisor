@@ -329,3 +329,577 @@ class PagesMixin:
                     b.clicked.connect(lambda _=False, u=url: QDesktopServices.openUrl(QUrl(u)))
                     box.addWidget(b)
             bv.addLayout(box)
+
+
+    def pg_home(self, v):
+        """首页 = 单列清单：一行一件事（名称 · 现状 · 一个按钮），从上往下扫完就知道要干嘛。"""
+        t = self.t
+        d = self.data
+        sup = d.get("sup") or {}
+        try:
+            VO = fresh("vault_ops")
+            m = VO.metrics()
+            hs = VO.health_score(m)
+            last = VO.last_auto() or {}
+        except Exception:
+            m, hs, last = {}, 0, {}
+        js = [j for j in tail_jsonl(APP_DIR / "judgments.jsonl", 40)
+              if j.get("action") == "judged" and not j.get("selftest")]
+        lastj = next((j for j in reversed(js) if j.get("checks")), {})
+        ck = lastj.get("checks") or {}
+        def four(kind):
+            c = ck.get(kind)
+            if not c:
+                return "—"
+            bad, verdict, _ = four_verdict(c, kind)
+            if verdict == "不适用":
+                return "—"
+            return "有问题" if bad else "正常"
+        try:
+            L = fresh("learn")
+            lm = L.metrics()
+        except Exception:
+            lm = {}
+        try:
+            pri = __import__("vault_priority").compute()
+            pc0 = (pri.get("counts") or {}).get("P0", 0)
+        except Exception:
+            pc0 = "—"
+        pcs = (_load_pc_state() or {}).get("summary") or {}
+        pend = len(d.get("need_hooks") or []) + len(d.get("corr") or []) + len(d.get("changes") or [])
+        need = (last.get("need_human") or [])
+
+        page_header(v, "管家", "后台自己在跑；这一页是清单，一行一件事，从上往下看。", t,
+                    [("刷新", self.refresh)])
+
+        # 一句话：现在需要你做什么
+        if need or pend:
+            txt = "；".join(need) if need else ""
+            if pend:
+                txt = (txt + "；" if txt else "") + "%d 条等你处理" % pend
+            msg = "⚠ 需要你：" + txt
+        else:
+            msg = "✅ 现在不用你管，管家自己在跑"
+        lab = QLabel(msg)
+        lab.setStyleSheet("font-weight:600;color:%s;" % (t["df"] if (need or pend) else t["okf"]))
+        lab.setWordWrap(True)
+        v.addWidget(lab)
+
+        def row(name, status, page, action="打开"):
+            w = QWidget()
+            h = QHBoxLayout(w)
+            h.setContentsMargins(2, 6, 2, 6)
+            a = QLabel(name)
+            a.setFixedWidth(150)
+            a.setStyleSheet("font-weight:600;")
+            h.addWidget(a)
+            b = QLabel(str(status))
+            b.setObjectName("muted")
+            b.setWordWrap(True)
+            b.setMinimumWidth(0)
+            b.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+            h.addWidget(b, 1)
+            btn = QPushButton(action)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda _=False, p_=page: self.goto(p_))
+            h.addWidget(btn)
+            return w
+
+        def group(title, rows):
+            f, bv = card(v, title)
+            for i, item in enumerate(rows):
+                n, st, pg = item[0], item[1], item[2]
+                act = item[3] if len(item) > 3 else "打开"
+                if i:
+                    sep = QFrame()
+                    sep.setFrameShape(QFrame.HLine)
+                    sep.setStyleSheet("color:%s;" % t["line"])
+                    bv.addWidget(sep)
+                bv.addWidget(row(n, st, pg, act))
+
+        group("监管 Codex", [
+            ("Codex 监管", "%s · 分数 %s · 最近判定 %s" % (
+                sup.get("level") or "—", sup.get("score", "—"),
+                (str(lastj.get("ts"))[11:19] if lastj else "还没判过")), "codex"),
+            ("四问检测（最近一轮）", "联网 %s · 查库 %s · 偷懒 %s · 降智 %s" % (
+                four("online"), four("vault"), four("lazy"), four("degrade")), "codex"),
+            ("硬性规则", "%d 条启用（含 H10 每轮必联网）" % len(fresh("supervisor_ui").load_hard_rules()), "rules"),
+            ("小工具信任", "%d 条待处理" % len(d.get("need_hooks") or []), "trust",
+             "去处理" if d.get("need_hooks") else "打开"),
+            ("责令改正", "%d 条未完成" % len(d.get("corr") or []), "corr",
+             "去处理" if d.get("corr") else "打开"),
+            ("改监督者的申请", "%d 条待批" % len(d.get("changes") or []), "changes",
+             "去批" if d.get("changes") else "打开"),
+            ("告警与审计", "%d 条审计记录" % len(tail_jsonl(APP_DIR / "audit.jsonl", 5000)), "logs"),
+        ])
+        group("知识库（自动运维）", [
+            ("Obsidian 库", "健康分 %s /100 · 断链 %s · 缺 fm %s · 收件箱 %s · 未提交 %s" % (
+                hs, m.get("broken_links", "—"), m.get("missing_frontmatter", "—"),
+                m.get("inbox_stale", "—"), m.get("uncommitted", "—")), "vault"),
+            ("知识库分类", "未分类 %s 篇 · 上次分类 %s" % (m.get("unclassified", "—"), "见详情"), "classes"),
+            ("优先级", "P0 %s 条（先看这些）" % pc0, "vault"),
+        ])
+        group("本机", [
+            ("本机环境", "CPU %s%% · 内存 %s%% · C盘剩余 %s GB" % (
+                pcs.get("cpu_pct", "—"), pcs.get("mem_pct", "—"),
+                next((x.get("free_gb") for x in (pcs.get("disks") or []) if x.get("id") == "C:"), "—")), "pc"),
+            ("开机自启 / 服务", "%s 项自启 · 见本机环境" % pcs.get("startup", "—"), "pc"),
+        ])
+        group("自我提升", [
+            ("学习与成长", "%s 条教训 · %s 条候选 · 误报率 %s%%" % (
+                lm.get("lessons", 0), lm.get("candidates_pending", 0), lm.get("false_alarm_rate", 0)), "learn"),
+            ("怎么看（术语表）", "%d 个词条" % len(GLOSSARY), "help"),
+        ])
+        f, bv = card(v, "管家自己在干什么")
+        line(bv, "上次自动", (last.get("ts") or "还没跑过")[:19], t, 80)
+        line(bv, "它自己做了", "；".join(last.get("did") or []) or "—", t, 110)
+
+
+    def pg_overview(self, v):
+        page_header(v, "总览", "① Codex　② Obsidian　③ 本机（辅助）",
+                    self.t, [("刷新", self.refresh)])
+        t, d = self.t, self.data
+        mon, sup = d.get("mon") or {}, d.get("sup") or {}
+        size = mon.get("transcript_bytes")
+        hist = tail_jsonl(SIZE_HIST, 2)
+        delta = ""
+        if hist and size:
+            try:
+                old = float(hist[-1].get("v"))
+                if old > 0:
+                    pct = (float(size) - old) / old * 100
+                    delta = "%s %.1f%%（自 %s）" % ("↑" if pct >= 0 else "↓", abs(pct),
+                                                    hhmmss(hist[-1].get("ts")))
+            except Exception:
+                delta = ""
+        # ---- 两个核心（这才是这个软件在干的事）
+        idx, chk, vevs = self._vault_state()
+        vsum = chk.get("summary") or {}
+        vlvl = self._vault_level(chk)
+        rowc = QHBoxLayout()
+        rowc.setSpacing(12)
+        f1, b1 = card(v, "① 监管 Codex 会话")
+        r1 = QWidget()
+        h1 = QHBoxLayout(r1)
+        h1.setContentsMargins(0, 0, 0, 0)
+        h1.addWidget(chip(d.get("sup_level") or "NORMAL", t))
+        h1.addWidget(QLabel("分数 %s" % (sup.get("score", "—"))))
+        h1.addStretch(1)
+        b1.addWidget(r1)
+        line(b1, "正在盯", elide((d.get("win") or {}).get("title"), 46) or "—", t, 70)
+        line(b1, "原因", "；".join(sup.get("reasons") or []) or "没有扣分项", t, 70)
+        c2 = sup.get("counters") or {}
+        try:
+            _jj = [j for j in tail_jsonl(APP_DIR / "judgments.jsonl", 30) if j.get("action") == "judged"]
+            _lastj = _jj[-1] if _jj else {}
+        except Exception:
+            _lastj = {}
+        line(b1, "最近判定", ("%s · %s" % (hhmmss(_lastj.get("ts")),
+                                        ("%d 条违规" % len(_lastj.get("violations") or [])) if _lastj.get("violations") else "没发现违规"))
+             if _lastj else "还没判过", t, 70)
+        line(b1, "这一轮", "%s 轮 · 命令 %s 次 · 工具错 %s 次" % (
+            c2.get("turns", "—"), (mon.get("events") or {}).get("command", "—"),
+            (mon.get("events") or {}).get("tool_error", "—")), t, 70)
+        line(b1, "等你处理", "未信任小工具 %d · 责令 %d · 提案 %d" % (
+            len(d.get("need_hooks") or []), len(d.get("corr") or []), len(d.get("changes") or [])), t, 70)
+        f2, b2 = card(v, "② 监管 Obsidian 库")
+        r2 = QWidget()
+        h2 = QHBoxLayout(r2)
+        h2.setContentsMargins(0, 0, 0, 0)
+        h2.addWidget(chip(vlvl, t))
+        h2.addWidget(QLabel("笔记 %s 篇" % (idx.get("count", "—"))))
+        h2.addStretch(1)
+        go = QPushButton("去处理")
+        go.setObjectName("link")
+        go.clicked.connect(lambda: self.goto("vault"))
+        h2.addWidget(go)
+        b2.addWidget(r2)
+        line(b2, "库体检", "断链 %s · 缺 frontmatter %s · 收件箱堆积 %s · 未提交 %s" % (
+            vsum.get("broken_links", "—"), vsum.get("missing_frontmatter", "—"),
+            vsum.get("inbox_stale", "—"), vsum.get("uncommitted", "—")), t, 70)
+        line(b2, "最近改动", (vevs[-1].get("ts") or "—")[:19] if vevs else "还没收到插件事件", t, 70)
+        line(b2, "上次索引", (idx.get("ts") or "还没同步（去 Obsidian 启用插件）")[:19], t, 70)
+        line(b2, "今天进收件箱", str(sum(1 for e in vevs if e.get("type") == "create" and str(e.get("path") or "").startswith("00_Inbox/"))), t, 70)
+
+        row0 = QWidget()
+        h0 = QHBoxLayout(row0)
+        h0.setContentsMargins(0, 0, 0, 0)
+        h0.setSpacing(12)
+        w1 = QWidget()
+        l1 = QVBoxLayout(w1)
+        l1.setContentsMargins(0, 0, 0, 0)
+        l1.addWidget(f1)
+        w2 = QWidget()
+        l2 = QVBoxLayout(w2)
+        l2.setContentsMargins(0, 0, 0, 0)
+        l2.addWidget(f2)
+        h0.addWidget(w1, 1)
+        h0.addWidget(w2, 1)
+        v.addWidget(row0)
+
+        # ---- 四个必答（这就是它存在的理由）
+        _js = [j for j in tail_jsonl(APP_DIR / "judgments.jsonl", 40) if j.get("action") == "judged"]
+        _last = next((j for j in reversed(_js) if j.get("checks")), {})
+        _ck = _last.get("checks") or {}
+        f, bv = card(v, "四个必答（最近一轮）",
+                     "它每轮就问这四件事，答不出证据就不下结论")
+        _vs = _last.get("violations") or []
+        _rules = " ".join(str(v.get("rule") or "") for v in _vs)
+        _onl = dict(_ck.get("online") or {})
+        if "did" not in _onl and "ai_searched" in _onl:
+            _onl["did"] = _onl.get("ai_searched")
+        rows4 = [
+            ("① 联网了吗", _onl, "needed", "did", None, None),
+            ("② 查库了吗", _ck.get("vault") or {}, "needed", "did", None, None),
+            ("③ 偷懒了吗", _ck.get("lazy") or {}, "claimed", "lazy", None, None),
+            ("④ 降智了吗", _ck.get("degrade") or {}, None, "risky", None, None),
+        ]
+        if not _ck:
+            empty(bv, "还没有带四问的判定记录，点「Codex 监管 → 立刻判一次」")
+        for name, c, kn, dn, _a, _b in rows4:
+            kind = {"①": "online", "②": "vault", "③": "lazy", "④": "degrade"}[name[:1]]
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 0, 0, 0)
+            if not c:
+                h.addWidget(chip("WATCH", t))
+                h.addWidget(QLabel("%s：这轮没记录" % name))
+            else:
+                bad, verdict, ev = four_verdict(c, kind)
+                h.addWidget(chip("BLOCKED" if bad else "NORMAL", t))
+                label = {"online": "联网了吗", "vault": "查库了吗", "lazy": "偷懒了吗", "degrade": "降智了吗"}[kind]
+                txt = "%s：%s" % (label, verdict)
+                if kind == "lazy":
+                    txt = "%s：%s" % (label, "有" if bad else "没有")
+                elif kind in ("online", "vault"):
+                    txt = "%s：%s" % (label, "查了" if not bad else "没查")
+                elif bad:
+                    txt = "%s：有迹象" % label
+                else:
+                    txt = "%s：没迹象" % label
+                a = QLabel(txt)
+                a.setWordWrap(True)
+                h.addWidget(a, 1)
+                ev2 = QLabel(elide(ev, 52))
+                ev2.setObjectName("small")
+                ev2.setMinimumWidth(0)
+                ev2.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+                h.addWidget(ev2, 1)
+            bv.addWidget(row)
+
+        # 本机环境（辅助，不是核心）
+        try:
+            import pc_guard
+            _pc = read_json(APP_DIR / "pc_state.json", {}) or {}
+            _pcs = _pc.get("summary") or {}
+            _pcl = _pc.get("level") or "—"
+        except Exception:
+            _pcs, _pcl = {}, "—"
+        f0, b0 = card(v, "③ 本机环境（辅助）",
+                      "系统资源只影响①②能不能好好干活，所以放在这里，不占主位。")
+        line(b0, "概况", "CPU %s%% · 内存 %s%% · C盘剩余 %s GB · 管家分 %s（%s）" % (
+            _pcs.get("cpu_pct", "—"), _pcs.get("mem_pct", "—"),
+            next((x.get("free_gb") for x in (_pcs.get("disks") or []) if x.get("id") == "C:"), "—"),
+            _pc.get("score", "—"), _pcl), t, 90)
+        go2 = QPushButton("打开本机环境")
+        go2.setObjectName("link")
+        go2.clicked.connect(lambda: self.goto("pc"))
+        b0.addWidget(go2)
+
+        counters = sup.get("counters") or {}
+        lvl = d.get("level") or "WATCH"
+        k = QHBoxLayout()
+        k.setSpacing(12)
+        kpi(k, "判定等级", "%s %s" % (LEVELS.get(lvl, ("·", "—"))[0], LEVELS.get(lvl, ("", "—"))[1]),
+            "取两个监督者里更坏的那个", t, LEVELS.get(lvl, ("", "", "w"))[2])
+        kpi(k, "记录大小", fmt_bytes(size), delta or "transcript 字节数（越大越接近上下文爆炸）", t)
+        kpi(k, "已跑轮次", str(counters.get("turns") or (mon.get("counters") or {}).get("turns") or "—"),
+            "命令 %s 次 · 工具报错 %s 次" % ((mon.get("events") or {}).get("command", "—"),
+                                            (mon.get("events") or {}).get("tool_error", "—")), t)
+        kpi(k, "待你处理", str(d.get("pending", 0)),
+            "未信任小工具 %d · 责令 %d · 提案 %d" % (len(d.get("need_hooks") or []),
+                                                    len(d.get("corr") or []), len(d.get("changes") or [])),
+            t, "ok" if not d.get("pending") else "w")
+        wrap = QWidget()
+        wrap.setLayout(k)
+        v.addWidget(wrap)
+
+        pair1 = QWidget()
+        ph1 = QHBoxLayout(pair1)
+        ph1.setContentsMargins(0, 0, 0, 0)
+        ph1.setSpacing(12)
+        colA = QWidget()
+        ca = QVBoxLayout(colA)
+        ca.setContentsMargins(0, 0, 0, 0)
+        colB = QWidget()
+        cb = QVBoxLayout(colB)
+        cb.setContentsMargins(0, 0, 0, 0)
+        ph1.addWidget(colA, 1)
+        ph1.addWidget(colB, 1)
+        v.addWidget(pair1)
+        f, bv = card(ca, "判定来源：两个监督者，按更坏的那个算",
+                     "左＝本程序算的，右＝Codex 内部算的，取更坏")
+        row = QWidget()
+        h = QHBoxLayout(row)
+        h.setContentsMargins(0, 0, 0, 0)
+        h.setSpacing(10)
+        h.addWidget(QLabel("本程序独立判定"))
+        h.addWidget(chip(d.get("mon_level") or "NORMAL", t))
+        h.addSpacing(6)
+        h.addWidget(QLabel("Codex 内部判定"))
+        h.addWidget(chip(d.get("sup_level") or "NORMAL", t))
+        h.addStretch(1)
+        bv.addWidget(row)
+        tp = str(mon.get("transcript") or "—")
+        line(bv, "记录文件", "…\\%s（从 %s 起算）" % (tp.replace("/", "\\").split("\\")[-1],
+                                                hhmmss(mon.get("window_start"))), t, 90)
+        line(bv, "内部分数", "score=%s　原因：%s" % (sup.get("score", "—"),
+                                              "；".join(sup.get("reasons") or []) or "—"), t, 110)
+        line(bv, "内部节拍", "%s（%s 分钟前）%s" % (hhmmss((sup.get("counters") or {}).get("last_turn_end_ts")),
+                                               "%.0f" % (mon.get("stale_min") or 0),
+                                               "　·　内部监督者可能停摆" if mon.get("stale") else ""), t, 110)
+
+        pend_items = []
+        for hk in (d.get("need_hooks") or []):
+            pend_items.append(("小工具信任", "%s：%s" % (hk.get("event_label"), hk.get("command")), "trust"))
+        for c in (d.get("corr") or []):
+            pend_items.append(("责令改正", elide(c.get("ask") or c.get("turn"), 60), "corr"))
+        for c in (d.get("changes") or []):
+            pend_items.append(("改监督者的申请", elide(c.get("title") or c.get("id"), 60), "changes"))
+        for r in (d.get("requests") or []):
+            pend_items.append(("授权申请", elide(r.get("reason") or r.get("key"), 60), "trust"))
+        f, bv = card(cb, "等你处理（%d）" % len(pend_items))
+        if not pend_items:
+            empty(bv, "没有等你处理的事。")
+        for label, text, page in pend_items[:8]:
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.addWidget(tag(label, t))
+            lab = QLabel(elide(text, 90))
+            lab.setWordWrap(True)
+            h.addWidget(lab, 1)
+            go = QPushButton("去处理")
+            go.setObjectName("link")
+            go.setCursor(Qt.PointingHandCursor)
+            go.clicked.connect(lambda _=False, p=page: self.goto(p))
+            h.addWidget(go)
+            bv.addWidget(row)
+
+        br = d.get("brain") or {}
+        findings = br.get("findings") or []
+        pair2 = QWidget()
+        ph2 = QHBoxLayout(pair2)
+        ph2.setContentsMargins(0, 0, 0, 0)
+        ph2.setSpacing(12)
+        colC = QWidget()
+        cc = QVBoxLayout(colC)
+        cc.setContentsMargins(0, 0, 0, 0)
+        colD = QWidget()
+        cd = QVBoxLayout(colD)
+        cd.setContentsMargins(0, 0, 0, 0)
+        ph2.addWidget(colC, 1)
+        ph2.addWidget(colD, 1)
+        v.addWidget(pair2)
+        f, bv = card(cc, "监督者大脑：最近发现",
+                     "它只能改自己的信号清单，别的要走提案")
+        if not findings:
+            empty(bv, "这一轮没有发现。（没发现不等于没问题。）")
+        for x in findings[:4]:
+            sev = {"要紧": "BLOCKED", "注意": "WATCH", "还好": "NORMAL"}.get(x.get("sev"), "WATCH")
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.addWidget(chip(sev, t))
+            box = QVBoxLayout()
+            box.setSpacing(2)
+            a = QLabel(str(x.get("title") or ""))
+            a.setWordWrap(True)
+            box.addWidget(a)
+            b = QLabel("证据：%s" % elide(x.get("evidence"), 90))
+            b.setObjectName("small")
+            b.setWordWrap(True)
+            box.addWidget(b)
+            c = QLabel("怎么办：%s" % elide(x.get("advice"), 90))
+            c.setObjectName("small")
+            c.setWordWrap(True)
+            box.addWidget(c)
+            h.addLayout(box, 1)
+            bv.addWidget(row)
+        health = (br.get("health") or {}).get("notes") or []
+        if health:
+            line(bv, "体检", "；".join(elide(x, 44) for x in health[:3]), t, 120)
+        line(bv, "上次动脑", str(br.get("ts") or "—"), t, 40)
+
+        if self.notes:
+            f, bv = card(v, "我让它查的")
+            for n in self.notes[:5]:
+                a = QLabel(str(n.get("title") or ""))
+                a.setObjectName("h2")
+                a.setWordWrap(True)
+                bv.addWidget(a)
+                b = QLabel(elide(n.get("body"), 600))
+                b.setWordWrap(True)
+                bv.addWidget(b)
+                for src in (n.get("sources") or [])[:3]:
+                    url = src.get("url") if isinstance(src, dict) else src
+                    if not url:
+                        continue
+                    btn = QPushButton("来源 ↗  " + elide(url, 70))
+                    btn.setObjectName("link")
+                    btn.setCursor(Qt.PointingHandCursor)
+                    btn.clicked.connect(lambda _=False, u=url: QDesktopServices.openUrl(QUrl(u)))
+                    bv.addWidget(btn)
+
+        evs = []
+        for a in (d.get("alerts") or []):
+            evs.append((a.get("ts"), ALERT_ZH.get(a.get("kind"), a.get("kind")), a.get("detail")))
+        for a in (d.get("audit") or []):
+            evs.append((a.get("ts"), AUDIT_ZH.get(a.get("action"), a.get("action")), a.get("key")))
+        evs = [e for e in evs if e[0]]
+        evs.sort(key=lambda x: str(x[0]), reverse=True)
+        f, bv = card(cd, "最近动静")
+        if not evs:
+            empty(bv, "还没有记录。")
+        for ts, what, detail in evs[:6]:
+            line(bv, hhmmss(ts), "%s　%s" % (what, elide(detail, 70)), t, 110)
+
+
+    def pg_codex(self, v):
+        t = self.t
+        d = self.data
+        sup = d.get("sup") or {}
+        mon = d.get("mon") or {}
+        c2 = sup.get("counters") or {}
+        try:
+            import learn as L
+            _m = L.metrics()
+        except Exception:
+            _m = {}
+        judged = tail_jsonl(APP_DIR / "judgments.jsonl", 40)
+        judged = [j for j in judged if j.get("action") == "judged"]
+        last = judged[-1] if judged else {}
+        corr = d.get("corr") or []
+        page_header(v, "Codex 监管", "它每 30 秒判一轮；判定历史、注入内容、干预次数都在这页。", t,
+                    [("立刻判一次", lambda: self.codex_judge_now())])
+
+        k = QHBoxLayout()
+        k.setSpacing(12)
+        kpi(k, "当前等级", "%s %s" % (LEVELS.get(d.get("level") or "WATCH", ("·", "—"))[0],
+                                    LEVELS.get(d.get("level") or "WATCH", ("", "—"))[1]),
+            "分数 %s" % sup.get("score", "—"), t, LEVELS.get(d.get("level") or "WATCH", ("", "", "w"))[2])
+        kpi(k, "最近判定", hhmmss(last.get("ts")) if last else "—",
+            ("%d 条违规" % len(last.get("violations") or [])) if last.get("violations") else "没发现违规", t)
+        kpi(k, "判定轮数", str(_m.get("judged_turns", len(judged))), "累计判过多少轮", t)
+        kpi(k, "正在注入", "%d 条" % (1 + len(corr)),
+            "常驻规矩 1 条 + 责令改正 %d 条，每条消息都带着走" % len(corr), t)
+        wrap = QWidget()
+        wrap.setLayout(k)
+        v.addWidget(wrap)
+
+        f, bv = card(v, "判定历史（最近 %d 轮）" % min(len(judged), 12),
+                     "时间 · 结论 · 是否联网核对 · 判据")
+        if not judged:
+            empty(bv, "还没有判定记录。点右上角「立刻判一次」。")
+        for j in reversed(judged[-12:]):
+            vv = j.get("violations") or []
+            onl = j.get("online") or {}
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.addWidget(chip("WATCH" if vv else "NORMAL", t))
+            h.addWidget(QLabel(hhmmss(j.get("ts"))))
+            who = QLabel("问：%s" % elide(j.get("ask"), 34))
+            who.setWordWrap(True)
+            h.addWidget(who, 1)
+            h.addWidget(QLabel("违规 %d" % len(vv)))
+            tagt = "已联网核 %s" % (onl.get("verdict") or "") if onl.get("needed") else "无需联网"
+            lab = QLabel(elide(tagt, 26))
+            lab.setObjectName("small")
+            h.addWidget(lab)
+            bv.addWidget(row)
+            for x in vv[:2]:
+                line(bv, "　", "%s ｜ %s" % (elide(x.get("rule"), 42), elide(x.get("fix"), 44)), t, 110)
+
+        f, bv = card(v, "逐轮四问（联网 / 查库 / 偷懒 / 降智）",
+                     "✅ 没问题 · ⚠ 有问题 · 空=这轮没记录")
+        t4 = QTableWidget(min(len(judged), 12), 5)
+        t4.setHorizontalHeaderLabels(["时间", "① 联网", "② 查库", "③ 偷懒", "④ 降智"])
+        t4.verticalHeader().setVisible(False)
+        t4.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        t4.setAlternatingRowColors(True)
+        t4.setMinimumHeight(min(340, 40 + 24 * max(3, min(len(judged), 12))))
+        t4.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        for i, j in enumerate(reversed(judged[-12:])):
+            ck = j.get("checks") or {}
+            t4.setItem(i, 0, QTableWidgetItem(hhmmss(j.get("ts"))))
+            def mark(c, kind):
+                if not c:
+                    return "—"
+                bad, verdict, _ev = four_verdict(c, kind)
+                if verdict == "不适用":
+                    return "—"
+                return "⚠" if bad else "✅"
+            for k, name in enumerate(("online", "vault", "lazy", "degrade")):
+                it = QTableWidgetItem(mark(ck.get(name), name))
+                it.setTextAlignment(Qt.AlignCenter)
+                t4.setItem(i, k + 1, it)
+        bv.addWidget(t4)
+
+        f, bv = card(v, "这一轮会注入什么（你在每条消息里能看到）",
+                     "下面这段就是它塞给 AI 的内容；你能看到 [监督者·常驻规矩] 说明这条链是通的。")
+        line(bv, "常驻规矩", "D1 联网核实（涉及规格/版本/API/标准/官方要求/数值，先联网查再写）", t, 110)
+        line(bv, "责令改正", "未完成 %d 条%s" % (len(corr), ("：" + elide((corr[0] or {}).get("rule"), 40)) if corr else ""), t, 110)
+        line(bv, "注入方式", "UserPromptSubmit hook → additionalContext（每轮一次）", t, 110)
+
+        f, bv = card(v, "为什么是这个等级")
+        line(bv, "原因", "；".join(sup.get("reasons") or []) or "没有扣分项", t, 110)
+        line(bv, "计数", "轮数 %s · 返工 %s · 上下文 %s 字 · 压缩 %s 次" % (
+            c2.get("turns", "—"), c2.get("rework", "—"), c2.get("context_chars", "—"), c2.get("compactions", "—")), t, 110)
+        line(bv, "阈值", self._ad_thresholds(), t, 110)
+        line(bv, "内部节拍", "%s（内部 supervisor 上次动的时间）" % hhmmss((sup.get("counters") or {}).get("last_turn_end_ts")), t, 110)
+
+        f, bv = card(v, "干预统计（它到底动过几次手）")
+        line(bv, "24h 注入", "%d 次（hook 日志 INJECT 计数）" % self._inject_24h(), t, 110)
+        line(bv, "等级变化", "%d 次（alerts 里的 level_change）" % self._level_changes(), t, 110)
+        line(bv, "小工具信任", "%d 条 handler，%d 条待处理" % (len(d.get("hooks") or []), len(d.get("need_hooks") or [])), t, 110)
+        line(bv, "审计条数", "%d 条（audit.jsonl）" % len(tail_jsonl(APP_DIR / "audit.jsonl", 5000)), t, 110)
+
+
+    def pg_vault(self, v):
+        """一屏：它自己干了什么 + 需要你什么；细节收进「详情」。"""
+        t = self.t
+        VO = fresh("vault_ops")
+        last = VO.last_auto() or {}
+        m = VO.metrics()
+        hs = VO.health_score(m)
+        page_header(v, "Obsidian 库 · 自动运维中",
+                    "它每 30 分钟自己跑一轮；下面的都是它自己想出来的结论。", t)
+        f, bv = card(v, "健康分 %s / 100" % hs,
+                     "断链 · 缺 frontmatter · 收件箱 · 未提交 · 未分类 —— 五项越低越好")
+        row = QWidget()
+        h = QHBoxLayout(row)
+        h.setContentsMargins(0, 0, 0, 0)
+        for lab, val in (("断链", m.get("broken_links")), ("缺 fm", m.get("missing_frontmatter")),
+                         ("收件箱", m.get("inbox_stale")), ("未提交", m.get("uncommitted")),
+                         ("未分类", m.get("unclassified"))):
+            lab2 = QLabel("%s %s" % (lab, val))
+            lab2.setStyleSheet("font-weight:600;color:%s;" % (t["okf"] if not val else t["df"]))
+            h.addWidget(lab2)
+            h.addSpacing(12)
+        h.addStretch(1)
+        b1 = QPushButton("让它现在跑一轮")
+        b1.setObjectName("primary")
+        b1.clicked.connect(self.vault_ops_run)
+        h.addWidget(b1)
+        b2 = QPushButton("详情")
+        b2.clicked.connect(self.vault_details)
+        h.addWidget(b2)
+        bv.addWidget(row)
+
+        line(bv, "上次自动", (str(last.get("ts") or "")[11:19] or "还没跑过") +
+             ("　健康分 %s" % last.get("health") if last.get("health") is not None else ""), t, 80)
+        did = (last.get("did") or [])[:3]
+        line(bv, "它自己做了", "；".join(did) if did else "（本轮没有需要动手的）", t, 110)
+        need = (last.get("need_human") or [])[:2]
+        line(bv, "需要你", "；".join(need) if need else "不用你管", t, 110)
