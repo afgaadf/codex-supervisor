@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "updated": "2026-10-07",
   "note": "可机读失败模式库。auto=yes/partial/manual；source 为证据出处或项目经验标注。",
   "modes": [
@@ -785,7 +785,7 @@
       "detect": "有模板但新建笔记结构偏离模板（缺字段或顺序）",
       "fix": "用模板重建或补齐缺失区块",
       "source": "T1 https://help.obsidian.md/plugins/templates（2026-10-07 访问）",
-      "auto": "partial"
+      "auto": "yes"
     },
     {
       "id": "obsidian.property_type_drift",
@@ -830,7 +830,7 @@
       "detect": "该主动出链处只靠入链，或链接方向与语义相反",
       "fix": "调整链接方向或补出链",
       "source": "T1 https://help.obsidian.md/links（2026-10-07 访问）",
-      "auto": "partial"
+      "auto": "yes"
     },
     {
       "id": "obsidian.inbox_no_triage",
@@ -938,7 +938,7 @@
       "detect": "单篇笔记超出合理篇幅且主题混杂",
       "fix": "按主题拆分并加索引",
       "source": "项目经验（非权威，库规）",
-      "auto": "partial"
+      "auto": "yes"
     },
     {
       "id": "obsidian.frontmatter_schema_drift",
@@ -1019,7 +1019,7 @@
       "detect": "同一环节连续多次报错后仍继续，未停下来换路子",
       "fix": "错误累计到 2~3 次就停、换假设、如实报告",
       "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
-      "auto": "partial"
+      "auto": "yes"
     },
     {
       "id": "codex.hook_silent_failure",

@@ -6,6 +6,27 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-07
+
+### Added
+- **检查结果带可执行修复建议**：每条命中带 `fix`（怎么修）与 `fix_auto`（能不能用现成工具）。
+  新增 `fix_plan(findings)` 与 `render_fix_plan()`，按严重度排序、标注「可脚本 / 需人工」、
+  给出具体命令。
+  - 新 CLI：`python checkers.py --fix-plan`（只出计划，**不执行**）
+  - `--human` 输出里每条下面直接跟一行「修法」
+  - 检查器**仍然只读**：给建议、不动库（H9）
+- 失败模式库 4 条从 partial **升级为可自动检测**：`codex.tool_error_pileup`、
+  `obsidian.template_unused`、`obsidian.link_direction`、`obsidian.note_bloat`
+  （auto=yes 从 31 → **35**，且**全部**有对应检查器）。
+- 新增检查器：工具错误堆积（同一环节 ≥3 处报错仍推进）、单篇过长（>200KB）、
+  链接方向（被引用 ≥3 次却零出链）、模板未套用（有模板但没有任何笔记用其字段组合）。
+
+### Tests
+- 新增 `tests/test_checkers_fixplan.py`（13 条），其中含**守护测试**：
+  「凡是标了 `auto=yes` 的条目，`checkers.py` 里必须真有检查器」与
+  「`FIX_HINTS` 里的 id 必须在失败模式库中存在」。
+- 全量 **141 → 154 条全绿**。
+
 ## [0.8.0] - 2026-10-07
 
 ### Added

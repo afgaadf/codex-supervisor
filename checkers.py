@@ -84,8 +84,13 @@ def _under(path: str, prefix: str) -> bool:
 
 
 def _finding(mid, area, severity, title, items):
-    return {"id": mid, "area": area, "severity": severity,
-            "title": title, "count": len(items), "items": list(items)}
+    out = {"id": mid, "area": area, "severity": severity,
+           "title": title, "count": len(items), "items": list(items)}
+    h = FIX_HINTS.get(mid)
+    if h:
+        out["fix"] = h.get("hint")
+        out["fix_auto"] = bool(h.get("auto"))
+    return out
 
 
 # ------------------------------------------------------------------ 链接解析
@@ -209,7 +214,31 @@ def check_vault(files, checks=None, max_items=15, now=None):
         findings.append(_finding("obsidian.orphan_attachment", "obsidian", "low",
                                  "附件无人引用", orphan_att[:max_items]))
 
-    # 7. 未提交（来自 checks 摘要）
+    # 7. 单篇过长（桥同口径：>200KB）
+    big = []
+    for f in notes:
+        try:
+            size = int(f.get("size") or 0)
+        except Exception:
+            size = 0
+        if size > 200 * 1024:
+            big.append("%s（%d KB）" % (f.get("path"), size // 1024))
+    if big:
+        findings.append(_finding("obsidian.note_bloat", "obsidian", "low",
+                                 "单篇过长未拆分", big[:max_items]))
+
+    # 8. 链接方向：被引用很多却不指出去
+    direction = []
+    for f in notes:
+        p_ = _norm(f.get("path"))
+        if not (f.get("links") or []) and backlinks.get(p_, 0) >= 3:
+            direction.append("%s（被引用 %d 次，但一条出链都没有）"
+                             % (f.get("path"), backlinks.get(p_, 0)))
+    if direction:
+        findings.append(_finding("obsidian.link_direction", "obsidian", "low",
+                                 "双链方向错误：只被引用不指出去", direction[:max_items]))
+
+    # 9. 未提交（来自 checks 摘要）
     if checks:
         s = checks.get("summary") if isinstance(checks, dict) else None
         if isinstance(s, dict) and s.get("uncommitted"):
@@ -329,6 +358,13 @@ def check_turn(ask="", actions="", say=""):
         findings.append(_finding("codex.destructive_glob", "codex", "critical",
                                  "通配符删除或覆盖",
                                  ["动作里出现通配符删除/清空，范围不受控"]))
+    # 同一环节连续报错仍按原路推进
+    err_hits = sum(len(re.findall(p, act, re.I)) for p in
+                   (r"error", r"failed", r"traceback", r"报错", r"失败", r"拒绝访问"))
+    if err_hits >= 3:
+        findings.append(_finding("codex.tool_error_pileup", "codex", "high",
+                                 "工具错误堆积却仍按原路推进",
+                                 ["动作里出现 %d 处错误标记，未停下换路子" % err_hits]))
     # 涉及既有资料却不查库
     mentions_lib = re.search(r"(之前(写|做)|我们的|已有|现有|既有|规范|知识库|vault|文档库|README|AGENTS)", both, re.I)
     reads_lib = re.search(r"(rg\s|grep|select-string|findstr|get-childitem|glob|search|检索|查找|读取|getfile|read)", act, re.I)
@@ -615,6 +651,32 @@ def check_vault_text(root=None, max_files=4000, max_items=15):
                                  "只用过一次的碎片标签",
                                  ["共 %d 个只用一次的标签，例：%s" % (len(singles), "、".join(singles[:8]))]))
 
+    # ---- 模板未套用：有模板，但没有一篇笔记用了模板的字段组合 ----
+    tdir = root / "30_模板"
+    if tdir.is_dir():
+        tmpl_keys = []
+        for tf in tdir.rglob("*.md"):
+            try:
+                ttext = tf.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+            tfm = _parse_frontmatter(ttext) or {}
+            ks = set(tfm)
+            if ks:
+                tmpl_keys.append((tf.name, ks))
+        if tmpl_keys:
+            note_keys = []
+            for rel, text in _walk_notes(root, max_files=max_files):
+                if not _is_note(rel):
+                    continue
+                note_keys.append(set(_parse_frontmatter(text) or {}))
+            used = any(ks <= nk for _, ks in tmpl_keys for nk in note_keys)
+            if note_keys and not used:
+                findings.append(_finding("obsidian.template_unused", "obsidian", "low",
+                                         "模板存在但没有笔记套用",
+                                         ["%d 个模板的字段组合在 %d 篇笔记里一个都没出现（例：%s）"
+                                          % (len(tmpl_keys), len(note_keys), tmpl_keys[0][0])]))
+
     # ---- 结构级 ----
     backup_dirs = [d.name for d in root.iterdir()
                    if d.is_dir() and re.search(r"(backup|备份|快照|bak)", d.name, re.I)]
@@ -632,6 +694,128 @@ def check_vault_text(root=None, max_files=4000, max_items=15):
             findings.append(_finding("obsidian.inbox_never_emptied", "obsidian", "high",
                                      "收件箱只进不出", ["00_Inbox 已积 %d 篇未分流" % len(files)]))
     return findings
+
+
+# ------------------------------------------------------------------ 修复建议
+# 每条失败模式对应的"安全修法"。auto=True 表示有现成工具能自动做（仍需人点一下）；
+# auto=False 表示必须人来看。这里只给建议，**检查器自己绝不改库**（H9）。
+FIX_HINTS = {
+    "obsidian.broken_link": {
+        "hint": "把链接改成现有笔记名，或删掉失效链接",
+        "auto": True, "how": "python vault_ops_batch.py plan  # 先看计划再 run"},
+    "obsidian.rename_without_link_repair": {
+        "hint": "疑似改名未修：把旧链接改成新名字",
+        "auto": True, "how": "python vault_ops_batch.py plan"},
+    "obsidian.missing_frontmatter": {
+        "hint": "补 frontmatter（至少 type/title/updated）",
+        "auto": True, "how": "python vault_ops_batch.py plan  # 会先备份再补"},
+    "obsidian.property_missing_required": {
+        "hint": "补齐库规要求的 type / title / updated",
+        "auto": False, "how": "按 30_模板 的模板补，或人工逐篇补"},
+    "obsidian.property_type_drift": {
+        "hint": "同名属性统一类型（日期别一会儿带引号一会儿不带）",
+        "auto": False, "how": "人工统一后再跑一次 --human 复查"},
+    "obsidian.frontmatter_schema_drift": {
+        "hint": "同义字段二选一统一（如 created/date、name/title）",
+        "auto": False, "how": "定一个主字段名，批量改完复查"},
+    "obsidian.heading_duplicate": {
+        "hint": "合并或改写重复标题（锚点会打架）",
+        "auto": False, "how": "人工改标题"},
+    "obsidian.note_no_h1": {
+        "hint": "补一级标题",
+        "auto": False, "how": "在正文首行加 # 标题"},
+    "obsidian.orphan_note": {
+        "hint": "挂进 MOC，或补一条指向相关笔记的链接",
+        "auto": False, "how": "人工判断归属"},
+    "obsidian.orphan_attachment": {
+        "hint": "归档或删除无人引用的附件（先确认再删）",
+        "auto": False, "how": "清单在 items 里，人确认后再动；本程序不删"},
+    "obsidian.inbox_no_triage": {
+        "hint": "给收件箱条目打标签或归类",
+        "auto": False, "how": "人工分流"},
+    "obsidian.inbox_stale": {
+        "hint": "清收件箱：归位或登记放弃",
+        "auto": False, "how": "人工分流"},
+    "obsidian.inbox_never_emptied": {
+        "hint": "收件箱只进不出，需要一次集中分流",
+        "auto": False, "how": "人工集中处理一批"},
+    "obsidian.tag_singleton": {
+        "hint": "把只用一次的标签并到既有标签",
+        "auto": False, "how": "人工合并，或改 30_模板 里的默认标签"},
+    "obsidian.backup_dir_in_vault": {
+        "hint": "把备份目录移到知识库外面",
+        "auto": False, "how": "移动前先确认备份完整"},
+    "obsidian.vault_no_gitignore": {
+        "hint": "补 .gitignore，排除缓存与大目录",
+        "auto": True, "how": "在库根建 .gitignore（内容按 items 里提示）"},
+    "obsidian.uncommitted_vault": {
+        "hint": "把库内改动提交 git",
+        "auto": True, "how": "git -C <库路径> add -A && git commit"},
+    "obsidian.plugin_disabled_unnoticed": {
+        "hint": "对齐启用清单与实际安装目录",
+        "auto": True, "how": "管家 → Obsidian 库 页可一键装插件；或手改 community-plugins.json"},
+    "obsidian.canvas_drift": {
+        "hint": "修 canvas 里失效的节点引用",
+        "auto": False, "how": "在 Obsidian 里打开该 canvas 手动改"},
+    "obsidian.bases_property_mismatch": {
+        "hint": "补视图依赖的属性，或改视图",
+        "auto": False, "how": "人工改 .base 或补属性"},
+    "obsidian.note_bloat": {
+        "hint": "单篇过长，按主题拆开并加索引",
+        "auto": False, "how": "人工拆分"},
+    "obsidian.template_unused": {
+        "hint": "模板没人套用：要么用起来，要么删掉",
+        "auto": False, "how": "检查 30_模板 是否还符合当前库规"},
+    "obsidian.link_direction": {
+        "hint": "被引用很多却不指出去的笔记，补几条出链",
+        "auto": False, "how": "人工补链"},
+    "codex.tool_error_pileup": {
+        "hint": "同一环节连错多次要停下来换路子，别硬推",
+        "auto": False, "how": "改行为；把错误如实报出来"},
+    "codex.irreversible_lockout": {
+        "hint": "先给恢复通道并验证它能用，再上限制",
+        "auto": False, "how": "参考 supervisor.py rescue 的做法"},
+}
+
+
+def fix_hint_for(mode_id):
+    return dict(FIX_HINTS.get(mode_id) or {})
+
+
+def fix_plan(findings, limit=40):
+    """把一次检查的结果转成可执行的修复计划（只给建议，不执行）。"""
+    plan = []
+    for f in findings or []:
+        h = FIX_HINTS.get(f.get("id"))
+        if not h:
+            continue
+        plan.append({
+            "id": f.get("id"),
+            "severity": f.get("severity"),
+            "count": f.get("count"),
+            "hint": h.get("hint"),
+            "auto": bool(h.get("auto")),
+            "how": h.get("how"),
+            "samples": list(f.get("items") or [])[:3],
+        })
+    order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    plan.sort(key=lambda x: (order.get(x.get("severity"), 9), not x.get("auto"), x.get("id") or ""))
+    return plan[:max(0, int(limit))]
+
+
+def render_fix_plan(plan):
+    if not plan:
+        return "没有需要修的项目。"
+    lines = ["修复计划（共 %d 类；【可脚本】= 有现成工具，其它需人工）：" % len(plan)]
+    for i, it in enumerate(plan, 1):
+        tag = "可脚本" if it.get("auto") else "需人工"
+        lines.append("%d. [%s|%s] %s（%s 条）" % (i, it.get("severity"), tag,
+                                                  it.get("hint"), it.get("count")))
+        if it.get("how"):
+            lines.append("      做法：%s" % it.get("how"))
+        for smp in (it.get("samples") or [])[:2]:
+            lines.append("      例：%s" % str(smp)[:110])
+    return "\n".join(lines)
 
 
 # ------------------------------------------------------------------ 插件状态检测
@@ -764,6 +948,8 @@ def _human(result):
     lines = ["自动检查发现 %d 类问题：" % len(fs)]
     for f in fs:
         lines.append("· [%s] %s（%d 条）" % (f["severity"], f["title"], f["count"]))
+        if f.get("fix"):
+            lines.append("    修法：%s%s" % (f["fix"], "（可脚本）" if f.get("fix_auto") else "（需人工）"))
         for it in f["items"][:5]:
             lines.append("    - %s" % it)
     return "\n".join(lines)
@@ -776,7 +962,9 @@ def main(argv):
         if i + 1 < len(argv):
             area = argv[i + 1]
     result = run(area=area)
-    if "--human" in argv:
+    if "--fix-plan" in argv:
+        print(render_fix_plan(fix_plan(result.get("findings") or [])))
+    elif "--human" in argv:
         print(_human(result))
     else:
         print(json.dumps(result, ensure_ascii=False, indent=2))
