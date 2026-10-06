@@ -781,7 +781,7 @@ class Main(QMainWindow):
         h.addSpacing(8)
         h.addWidget(self.lbl_trust, 1)
         bv.addWidget(row)
-        line(bv, "信任写哪", "C:\\Users\\taich\\.codex\\config.toml → [hooks.state.*] trusted_hash", t, 120)
+        line(bv, "信任写哪", "<Codex 家目录>\\config.toml → [hooks.state.*] trusted_hash", t, 120)
         line(bv, "为什么", "Codex 自己的信任哈希不覆盖脚本内容，所以这一页只由你点；AI 没有令牌。", t, 120)
 
     def on_trust_sel(self):

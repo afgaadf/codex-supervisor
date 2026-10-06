@@ -179,9 +179,17 @@ psutil 官方文档（本机未安装，仅作能力对照）。详见 `事实�
   受信任根。公开下载必须换成用户自己申请的 CA 代码签名证书。
 - 详细命令与 T1 出处：`packaging\msix\README.md`。
 
+## 公开工程文件
+
+- `PRIVACY.md`：本机读取、写入和联网边界。
+- `SECURITY.md`：漏洞报告和安全边界。
+- `THIRD-PARTY-NOTICES.md`：冻结版/MSIX 的第三方组件清单。
+- `.github/workflows/`：Windows CI 与未签名 MSIX 手动构建。
+
 ## 开发与测试（2026-10-07 起）
 
 - **版本控制**：本目录已是 git 仓库（`git log` 可查历史）。`.gitignore` 已排除运行数据、日志、密钥（`plugin_token.txt`）、大文件与备份目录。
+- **依赖**：开发/打包前运行 `python -m pip install -r requirements-dev.txt`。
 - **单元测试**：用标准库 `unittest`，**零第三方依赖**（跟本程序一贯的取舍一致）。
   - 一键跑：`tests\run-tests.cmd`，或在本目录执行 `python -m unittest discover -s tests -v`
   - 现覆盖：**47 条全绿** —— GUI 控件生命周期、`codex_trust` 哈希契约、13 页离屏冒烟、
