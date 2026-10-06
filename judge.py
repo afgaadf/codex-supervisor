@@ -29,6 +29,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from paths import CODEX_HOME as CODEX, RUBRIC_DIR, seed_rubrics, DATA_DIR, APP_DIR
+import failure_modes as FM
 
 # 判据走可写副本（首次运行由 seed_rubrics 播种）
 seed_rubrics()
@@ -514,6 +515,7 @@ def _build_prompt(ask, actions, say, sups, online=None):
         + "【用户这一轮的要求】\n" + (ask or "")[:1500] + "\n\n"
         + "【这一轮实际做的事】\n" + (actions or "")[:6000] + "\n\n"
         + "【它最后对用户说的话】\n" + (say or "")[:4000] + "\n\n"
+        + FM.render_for_prompt((ask or "") + "\n" + (actions or "") + "\n" + (say or ""), limit=8)
         + _online_block(online) + _lessons_block() + "\n"
         + '只输出 JSON：{"checklist":[{"item":"短标签","type":"done_claim|plan"}],'
           '"behavior":{"online":{"verdict":"是|否|不适用","evidence":"哪句话/哪个动作"},'

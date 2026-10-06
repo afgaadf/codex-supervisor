@@ -6,6 +6,23 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-07
+
+### Added
+- 新增可机读失败模式库 `rubrics/_failure_modes.json`：Codex 14 项、Obsidian 14 项。
+- `judge` 每轮根据文本自动筛选最多 8 条相关失败模式，注入判断提示词。
+- 界面「帮助」页新增失败模式库卡片。
+- 失败模式覆盖完成声明、测试缺失、危险操作、范围扩大、上下文失忆、来源伪造、
+  断链、缺属性、重复笔记、孤立笔记、MOC、附件位置、链接修复和未提交等。
+
+### Sources
+- Obsidian：官方 Help 文档（Internal links / Properties / Attachments / Backlinks）。
+- Codex：官方 developers 文档 2026-10-07 直连返回 403；相关条目明确标为
+  **项目经验（非权威）**，不冒充官方规则。
+
+### Tests
+- 新增 `tests/test_failure_modes.py`；共 54 条全绿。
+
 ## [0.3.1] - 2026-10-07
 
 ### Changed

@@ -120,6 +120,17 @@ class PagesMixin:
         ):
             line(bv, a, b, t, 110)
 
+        try:
+            import failure_modes as FM
+            fm = FM.describe()
+            f, bv = card(v, "失败模式库",
+                         "Codex / Obsidian 已知问题；判断器每轮自动挑选相关条目")
+            line(bv, "总数", "Codex %d 项 · Obsidian %d 项" % (fm.get("codex", 0), fm.get("obsidian", 0)), t, 90)
+            for mode in FM.select("Codex Obsidian 完成 测试 双链 frontmatter", limit=6):
+                line(bv, mode.get("area", ""), "%s：%s" % (mode.get("title"), mode.get("fix")), t, 130)
+        except Exception:
+            pass
+
         f, bv = card(v, "术语表（专业名 → 大白话）",
                      "全站名词解释，自动生成。")
         for name, plain in GLOSSARY.items():

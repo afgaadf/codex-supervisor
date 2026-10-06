@@ -195,8 +195,8 @@ psutil 官方文档（本机未安装，仅作能力对照）。详见 `事实�
 - **依赖**：开发/打包前运行 `python -m pip install -r requirements-dev.txt`。
 - **单元测试**：用标准库 `unittest`，**零第三方依赖**（跟本程序一贯的取舍一致）。
   - 一键跑：`tests\run-tests.cmd`，或在本目录执行 `python -m unittest discover -s tests -v`
-  - 现覆盖：**51 条全绿** —— GUI 控件生命周期、`codex_trust` 哈希契约、13 页离屏冒烟、
-    通知去重与常驻通知器、后台引擎防重复启动、MSIX 清单契约、增量日志读取。
+  - 现覆盖：**54 条全绿** —— GUI 控件生命周期、`codex_trust` 哈希契约、13 页离屏冒烟、
+    通知去重与常驻通知器、后台引擎防重复启动、MSIX 清单契约、增量日志读取、失败模式库。
 - **改动约定**（依据见知识库《成熟公司软件工程心得（对管家系统的适用）》）：
   1. 每步一个自洽的小提交（Google《Small CLs》）。
   2. 改完先跑测试再提交（Fowler《Continuous Integration》）。
