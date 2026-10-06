@@ -6,6 +6,25 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-07
+
+### Fixed
+- **Obsidian 插件在真实知识库上会噪声淹没（真机安装时实测发现）**：本机 `20_附件/原始资料`
+  有 **63791 个文件（1.35 GB）**，插件把它当成普通内容，
+  报出「63845 个孤立附件 / 1286 篇缺 frontmatter / 1572 处断链」。修复后同一真库为
+  **277 个孤立附件 / 30 篇缺 frontmatter / 16 处断链**。
+  - 缺 frontmatter、断链改为只统计知识区（`20_附件` / `30_模板` / `90_归档` 不算）。
+  - 新增设置项 `attachmentIgnoreFolders`（默认 `["20_附件/原始资料"]`）。
+  - 孤立附件列表上限 `ORPHAN_ATTACHMENT_MAX_LIST=50`，超出只报数量。
+- 插件版本 0.1.0 → **0.1.1**（manifest / main.js / versions.json 同步）。
+
+### Added
+- `plugins/obsidian/selftest.js`：插件自带 Node 自测（含"大归档不淹没报告"回归用例）。
+- `tests/test_obsidian_plugin_selftest.py`：用 Node 跑该自测（无 node 自动跳过）。
+
+### Tests
+- 新增 3 条测试；全量 **109 条全绿**。
+
 ## [0.6.0] - 2026-10-07
 
 ### Added

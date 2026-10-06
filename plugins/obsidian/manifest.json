@@ -1,7 +1,7 @@
 {
   "id": "codex-supervisor",
   "name": "管家监督",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minAppVersion": "1.0.0",
   "description": "管家（Codex Supervisor）知识库体检：在 Obsidian 内检测断链、缺 frontmatter、孤立笔记、收件箱堆积与孤立附件，并写出 JSON 报告供管家界面显示。",
   "author": "Codex Supervisor",

@@ -18,14 +18,19 @@ const Setting = obsidian.Setting;
 const Notice = obsidian.Notice;
 
 const PLUGIN_ID = "codex-supervisor";
-const PLUGIN_VERSION = "0.1.0";
+const PLUGIN_VERSION = "0.1.1";
 const REPORT_FILE = "obsidian.json";
 
 const DEFAULT_SETTINGS = {
   reportDir: os.homedir() + "/.codex/supervisor-plugin-reports/",
   throttleSeconds: 5,
   inboxStaleDays: 14,
+  // 这些目录只当"仓库"不当"知识笔记"，默认不参与体检（原始资料归档可达数万文件）
+  attachmentIgnoreFolders: ["20_附件/原始资料"],
 };
+
+// 附件报告上限：超过只统计数量，不再逐条列出，避免报告被淹没
+const ORPHAN_ATTACHMENT_MAX_LIST = 50;
 
 // 工具文件豁免：这些文件本来就不需要 frontmatter
 const TOOL_FILE_NAMES = ["AGENTS.md", "CLAUDE.md", "maintenance_prompt.md", ".gitignore"];
@@ -59,6 +64,17 @@ function isNonKnowledge(p) {
     const pre = NON_KNOWLEDGE_PREFIXES[i];
     if (s.indexOf(pre) === 0) return true;
     if (s.indexOf("/" + pre) !== -1) return true;
+  }
+  return false;
+}
+
+function isIgnoredFolder(p, folders) {
+  const s = toPosix(p);
+  const list = Array.isArray(folders) ? folders : [];
+  for (let i = 0; i < list.length; i++) {
+    const pre = toPosix(list[i]).replace(/\/+$/, "");
+    if (!pre) continue;
+    if (s === pre || s.indexOf(pre + "/") === 0) return true;
   }
   return false;
 }
@@ -186,6 +202,7 @@ function runChecks(app, settings, deps) {
   const unresolvedKeys = Object.keys(unresolved);
   for (let i = 0; i < unresolvedKeys.length; i++) {
     const src = toPosix(unresolvedKeys[i]);
+    if (isNonKnowledge(src)) continue; // 归档/剪藏里的链接不算笔记断链
     const links = unresolved[unresolvedKeys[i]] || {};
     const names = Object.keys(links);
     for (let j = 0; j < names.length; j++) {
@@ -204,6 +221,7 @@ function runChecks(app, settings, deps) {
   for (let i = 0; i < mdFiles.length; i++) {
     const f = mdFiles[i];
     if (TOOL_FILE_NAMES.indexOf(baseName(f.path)) !== -1) continue;
+    if (isNonKnowledge(f.path)) continue; // 归档/剪藏/模板不要求 frontmatter
     const cache = safeCache(mc, f);
     const fm = cache ? cache.frontmatter : null;
     if (!fm || Object.keys(fm).length === 0) missingFm.push(toPosix(f.path));
@@ -261,11 +279,15 @@ function runChecks(app, settings, deps) {
 
   // ---- obsidian.orphan_attachment ----
   const orphanAttach = [];
+  let orphanAttachTotal = 0;
+  const ignoreFolders = cfg.attachmentIgnoreFolders;
   for (let i = 0; i < allFiles.length; i++) {
     const p = toPosix(allFiles[i].path);
     if (p.indexOf(ATTACHMENT_PREFIX) !== 0) continue;
+    if (isIgnoredFolder(p, ignoreFolders)) continue;
     if (referencedPaths.has(p)) continue;
-    orphanAttach.push(p);
+    orphanAttachTotal += 1;
+    if (orphanAttach.length < ORPHAN_ATTACHMENT_MAX_LIST) orphanAttach.push(p);
   }
 
   // ---- 汇总 ----
@@ -326,10 +348,12 @@ function runChecks(app, settings, deps) {
   });
   checks.push({
     id: "obsidian.orphan_attachment",
-    status: orphanAttach.length > 0 ? "warn" : "ok",
-    count: orphanAttach.length,
-    detail: orphanAttach.length > 0
-      ? "20_附件 有 " + orphanAttach.length + " 个附件未被任何笔记引用：" +
+    status: orphanAttachTotal > 0 ? "warn" : "ok",
+    count: orphanAttachTotal,
+    detail: orphanAttachTotal > 0
+      ? "20_附件 有 " + orphanAttachTotal + " 个附件未被任何笔记引用："
+        + (Array.isArray(ignoreFolders) && ignoreFolders.length
+            ? "（已排除 " + ignoreFolders.join("、") + "）" : "") +
         previewList(orphanAttach, 3, function (p) { return p; })
       : "20_附件 中的附件均被引用。",
   });
@@ -357,7 +381,7 @@ function runChecks(app, settings, deps) {
     missing_frontmatter: missingFm.length,
     orphan_notes: orphans.length,
     inbox_untriaged: inboxUntriaged.length,
-    orphan_attachments: orphanAttach.length,
+    orphan_attachments: orphanAttachTotal,
   };
 
   return { checks: checks, metrics: metrics, healthy: healthy, summary: summary };
@@ -559,6 +583,7 @@ class SupervisorSettingTab extends PluginSettingTab {
 
 module.exports = CodexSupervisorPlugin;
 module.exports.PLUGIN_ID = PLUGIN_ID;
+module.exports.ORPHAN_ATTACHMENT_MAX_LIST = ORPHAN_ATTACHMENT_MAX_LIST;
 module.exports.PLUGIN_VERSION = PLUGIN_VERSION;
 module.exports.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
 module.exports.runChecks = runChecks;
