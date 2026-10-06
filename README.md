@@ -163,13 +163,23 @@ psutil 官方文档（本机未安装，仅作能力对照）。详见 `事实�
 - 界面：所有专业名词**下方**都给了大白话（`GLOSSARY`，同一份用于「怎么看 → 术语表」）。
 
 
+## MSIX 打包（2026-10-07 起）
+
+- 一次构建两个 exe：窗口 `Supervisor.exe` + 后台 `SupervisorButler.exe`，共享一个 `_internal`。
+- `packaging\msix\AppxManifest.xml.template` 声明应用身份、桌面启动器和
+  `uap5:StartupTask` 声明式自启（后台管家）。
+- `packaging\msix\build_msix.py` 负责 `makeappx` 打包和 `signtool` 签名。
+- 本机已生成并签名测试包；安装验证需要开发者模式/旁加载，或把测试证书放入
+  受信任根。公开下载必须换成用户自己申请的 CA 代码签名证书。
+- 详细命令与 T1 出处：`packaging\msix\README.md`。
+
 ## 开发与测试（2026-10-07 起）
 
 - **版本控制**：本目录已是 git 仓库（`git log` 可查历史）。`.gitignore` 已排除运行数据、日志、密钥（`plugin_token.txt`）、大文件与备份目录。
 - **单元测试**：用标准库 `unittest`，**零第三方依赖**（跟本程序一贯的取舍一致）。
   - 一键跑：`tests\run-tests.cmd`，或在本目录执行 `python -m unittest discover -s tests -v`
-  - 现覆盖：**42 条全绿** —— GUI 控件生命周期、`codex_trust` 哈希契约、13 页离屏冒烟、
-    通知去重、后台引擎防重复启动。
+  - 现覆盖：**45 条全绿** —— GUI 控件生命周期、`codex_trust` 哈希契约、13 页离屏冒烟、
+    通知去重、后台引擎防重复启动、MSIX 清单契约。
 - **改动约定**（依据见知识库《成熟公司软件工程心得（对管家系统的适用）》）：
   1. 每步一个自洽的小提交（Google《Small CLs》）。
   2. 改完先跑测试再提交（Fowler《Continuous Integration》）。

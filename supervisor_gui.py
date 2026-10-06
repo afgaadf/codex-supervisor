@@ -29,13 +29,13 @@ if str(_HERE) not in sys.path:
 
 from gui_data import (ALERT_ZH, APP_DIR, AUDIT_ZH, GLOSSARY, GLOSSARY_LONG,  # noqa: E402
                       SIZE_HIST)
-from paths import CODEX_HOME, DATA_DIR, VAULT_DIR   # noqa: E402
+from paths import CODEX_HOME, DATA_DIR, RESOURCE_DIR, VAULT_DIR   # noqa: E402
 
 LOG_DIR = DATA_DIR / "logs"
 HEARTBEAT = LOG_DIR / "app.heartbeat"     # 看门狗靠它判断"窗口还在"
 STOPPED = LOG_DIR / "app.stopped"         # 你主动退出 → 看门狗不再拉起
 SETTINGS = DATA_DIR / "settings.json"
-ICON = APP_DIR / "home.ico"          # 电脑管家图标（盾+勾）
+ICON = RESOURCE_DIR / "home.ico"      # 电脑管家图标（盾+勾）
 
 from PySide6.QtCore import QPointF, Qt, QThread, QTimer, Signal, QUrl
 from PySide6.QtGui import (QColor, QDesktopServices, QFont, QIcon, QKeySequence, QPainter, QPen,

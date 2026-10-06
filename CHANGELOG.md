@@ -15,8 +15,19 @@
   **项目约定（非权威）**，不是 Windows 规定。
 - 判定入口增加同一进程内互斥，避免自动循环与「立即判定」按钮并发写入重复记录。
 
+### Added
+- MSIX 路线：一次 PyInstaller 构建两个 exe（窗口 + 后台管家），新增
+  `packaging\msix\AppxManifest.xml.template`、`build_msix.py`、本地测试证书脚本和
+  `uap5:StartupTask` 声明。
+- `paths.RESOURCE_DIR`：把 PyInstaller 的 `_internal` 只读资源根与安装根 `APP_DIR`
+  分开，修复打包后找不到 `home.ico` / `rubrics` / `rules_hard` 资源的问题。
+
 ### Tests
-- 新增 `tests/test_notify_and_backend.py`：覆盖通知去重与后台引擎防重复启动；共 42 条全绿。
+- 新增 `tests/test_notify_and_backend.py` 和 `tests/test_msix_manifest.py`；共 45 条全绿。
+
+> 已知限制：本机 MSIX 安装验证被 `0x80073CFF`（需开发者模式/旁加载）和自签名根证书
+> 信任策略挡住；包结构、签名动作和冻结后台已分别验证通过。公开分发仍需 CA 代码签名证书。
+
 ## [0.2.0] - 2026-10-07
 
 ### Changed

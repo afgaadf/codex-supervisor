@@ -33,6 +33,7 @@ plugin_token.txt
 *.jpeg
 !home.png
 !home.ico
+!packaging/msix/Assets/*.png
 *.bak
 *.bak-*
 *.tmp
@@ -42,4 +43,8 @@ corrections.json
 # ================= 打包产物（不进版本库） =================
 packaging/build/
 packaging/dist/
+packaging/msix/staging/
+packaging/msix/out/
+packaging/msix/local-cert/
 *.spec
+!packaging/Supervisor.spec

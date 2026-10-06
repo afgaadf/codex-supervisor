@@ -15,7 +15,7 @@ import hashlib, http.server, json, re as _re, secrets, socketserver, subprocess,
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from paths import APP_DIR, CODEX_HOME, DATA_DIR, is_packaged, APP_DIR
+from paths import APP_DIR, CODEX_HOME, DATA_DIR, RESOURCE_DIR, is_packaged
 
 CODEX_CFG = str(CODEX_HOME / "config.toml")
 
@@ -500,7 +500,7 @@ def load_hard_rules(only_enabled=True):
     try:
         if not RULES_HARD.exists():                 # 首次运行：从随包只读副本播种
             try:
-                RULES_HARD.write_text((APP_DIR / "rules_hard.json").read_text(encoding="utf-8"),
+                RULES_HARD.write_text((RESOURCE_DIR / "rules_hard.json").read_text(encoding="utf-8"),
                                       encoding="utf-8")
             except Exception:
                 pass
