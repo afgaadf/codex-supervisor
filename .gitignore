@@ -36,3 +36,5 @@ plugin_token.txt
 *.bak
 *.bak-*
 *.tmp
+# 运行期注入载荷（每轮追加 turn，内容可由 rules_hard.json 复现）
+corrections.json
