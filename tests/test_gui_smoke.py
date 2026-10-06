@@ -52,6 +52,8 @@ class GuiSmokeTest(unittest.TestCase):
     def test_build_and_render_every_page(self):
         w = G.Main()
         self.assertEqual(len(w.PAGES), len(ALL_PAGES))
+        # 防回归：曾用 2 秒全量重建把桌面拖死；看板轮询不得快于 10 秒。
+        self.assertGreaterEqual(w.timer.interval(), 10000)
         for key in ALL_PAGES:
             with self.subTest(page=key):
                 w.nav.setCurrentRow(w.nav_rows[key])

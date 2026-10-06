@@ -398,7 +398,9 @@ class Main(PagesMixin, QMainWindow):
         self.apply_theme()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
-        self.timer.start(2000)
+        # 项目约定（非权威）：2 秒全量重建做过一次卡死；看板 10 秒足够，
+        # 用户手动刷新/页面切换仍立即重建。
+        self.timer.start(10000)
         self.refresh()
 
     # -------------------------------------------------- 主题
@@ -472,7 +474,9 @@ class Main(PagesMixin, QMainWindow):
             HEARTBEAT.write_text(str(int(time.time())), encoding="utf-8")
         except Exception:
             pass
-        self.rebuild()
+        # 最小化时只更新心跳和顶部状态，不再销毁/重建整页控件。
+        if not self.isMinimized():
+            self.rebuild()
 
     def current_key(self):
         it = self.nav.currentItem()
@@ -989,6 +993,10 @@ class Main(PagesMixin, QMainWindow):
         self.rebuild()
 
     # -------------------------------------------------- 收尾
+    def showEvent(self, e):
+        super().showEvent(e)
+        QTimer.singleShot(0, self.refresh)
+
     def closeEvent(self, e):
         try:
             LOG_DIR.mkdir(parents=True, exist_ok=True)
