@@ -5,10 +5,21 @@
 ## 下载
 
 - GitHub 仓库：https://github.com/afgaadf/codex-supervisor
-- 最新预发布：https://github.com/afgaadf/codex-supervisor/releases/tag/v0.5.0
+- 最新预发布：https://github.com/afgaadf/codex-supervisor/releases/tag/v0.6.0
 - **注意**：当前 MSIX 是自签名测试包，不是正式 CA 代码签名包；普通用户直接安装可能被 Windows 拒绝。
 
 **独立于 Codex 的监管程序。信任只能由人经此界面授予。**
+
+## 两个插件（v0.6.0）
+
+管家配两个插件，都会把状态显示在管家界面里：
+
+- **Codex 插件**（`plugins/codex/`）：一个 skill + 一个 MCP 服务器，让 Codex 在收尾前
+  先调用管家自查（当前分数/等级、失败模式库、对一段文本做确定性检测）。
+- **Obsidian 插件**（`plugins/obsidian/`）：标准社区插件，把知识库体检搬进 Obsidian
+  进程内（更快、有事件驱动），结果写成报告给管家。安装：Obsidian 页上点「装进知识库」
+  或在设置→第三方插件里启用。
+
 
 ## 为什么是独立程序
 

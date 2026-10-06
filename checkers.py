@@ -300,6 +300,19 @@ def check_turn(ask="", actions="", say=""):
         findings.append(_finding("codex.token_bloat", "codex", "medium",
                                  "疑似全量读取大文件或大日志",
                                  ["动作像在整读日志/大文件，未用尾部或检索"]))
+    # 同一失败无上限重试（重复 >=2 且带重试口吻）
+    rep2 = [ln for ln, c in _counts(lines).items() if c >= 2]
+    if rep2 and re.search(r"(重试|retry|再试|再来一次|again)", both, re.I):
+        findings.append(_finding("codex.unbounded_retry", "codex", "medium",
+                                 "同一失败无上限重试不换策略",
+                                 ["同一命令重复且出现重试口吻：%s" % d[:120] for d in rep2[:5]]))
+    # 涉及既有资料却不查库
+    mentions_lib = re.search(r"(之前(写|做)|我们的|已有|现有|既有|规范|知识库|vault|文档库|README|AGENTS)", both, re.I)
+    reads_lib = re.search(r"(rg\s|grep|select-string|findstr|get-childitem|glob|search|检索|查找|读取|getfile|read)", act, re.I)
+    if mentions_lib and not reads_lib:
+        findings.append(_finding("codex.no_library_lookup", "codex", "high",
+                                 "涉及既有资料却不查库",
+                                 ["文本提到既有资料/规范，但动作里没有检索或读取"]))
     return findings
 
 
@@ -308,6 +321,200 @@ def _counts(seq):
     for x in seq:
         d[x] += 1
     return d
+
+
+# ------------------------------------------------------------------ 内容级检测
+def _parse_frontmatter(text):
+    """极简 YAML 子集：只取 --- ... --- 之间的顶层 `key: value`；解析不了返回 None。"""
+    if not text or not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    if end == -1:
+        return None
+    lines = text[3:end].splitlines()
+    fm = {}
+    for i, line in enumerate(lines):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line[0] in (" ", "\t", "-"):
+            continue
+        if ":" not in line:
+            continue
+        k, v = line.split(":", 1)
+        k = k.strip()
+        if not k:
+            continue
+        v = v.strip()
+        if v == "":
+            # 值为空时看下一行：缩进的 `- ` 说明是块列表，避免误判成"空"类型
+            for nxt in lines[i + 1:]:
+                if not nxt.strip():
+                    continue
+                if nxt[0] in (" ", "\t"):
+                    v = "[]" if nxt.lstrip().startswith("-") else "<多行>"
+                break
+        fm[k] = v
+    return fm
+
+
+def _infer_type(value):
+    s = str(value or "").strip()
+    if s == "":
+        return "空"
+    if s.startswith("[") or s.startswith("-"):
+        return "列表"
+    if s.lower() in ("true", "false", "yes", "no"):
+        return "布尔"
+    if re.match(r"^\d{4}-\d{2}-\d{2}", s):
+        return "日期"
+    if re.match(r"^-?\d+(\.\d+)?$", s):
+        return "数字"
+    return "文本"
+
+
+# 同义字段组：组内出现 >=2 种写法 = 命名漂移
+SYNONYM_GROUPS = (
+    {"date", "日期", "created", "创建", "创建日期"},
+    {"updated", "更新", "更新日期", "modified", "修改日期"},
+    {"title", "标题", "name", "名称"},
+    {"tags", "tag", "标签"},
+    {"type", "类型", "类别"},
+    {"aliases", "alias", "别名"},
+)
+
+
+def _resolve_ref(ref, stems):
+    key = _stem(ref)
+    if not key:
+        return False
+    if key in stems:
+        return True
+    names = {Path(x).name for x in stems}
+    if key in names:
+        return True
+    return any(x.endswith("/" + key) for x in stems)
+
+
+def _base_properties(text):
+    """.base 文件里引用的属性名（保守：只收明显像属性名的）。"""
+    props = set()
+    try:
+        data = json.loads(text)
+    except Exception:
+        data = None
+    if isinstance(data, dict):
+        def walk(node):
+            if isinstance(node, dict):
+                for k, v in node.items():
+                    if k in ("property", "properties", "columns", "order") and isinstance(v, (list, str)):
+                        items = v if isinstance(v, list) else [v]
+                        for it in items:
+                            if isinstance(it, str):
+                                props.add(it)
+                            elif isinstance(it, dict) and isinstance(it.get("property"), str):
+                                props.add(it["property"])
+                    walk(v)
+            elif isinstance(node, list):
+                for it in node:
+                    walk(it)
+        walk(data)
+    if not props:
+        for line in text.splitlines():
+            m = re.match(r"^\s*-?\s*([A-Za-z_]\w*(?:\.\w+)*)\s*$", line)
+            if m:
+                props.add(m.group(1))
+    return {x for x in props if x and x not in ("and", "or", "not", "true", "false")}
+
+
+def check_vault_content(root=None, max_files=4000, max_items=15):
+    """读知识库正文，补跑依赖文件内容的 auto=yes 检查（只读，不改库）。"""
+    root = Path(root or VAULT_DIR)
+    if not root.is_dir():
+        return []
+    stems, notes_fm, canvases, bases = {}, [], [], []
+    n = 0
+    for path in root.rglob("*"):
+        if n >= max_files:
+            break
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        if any(part in HARD_SKIP for part in rel.split("/")[:-1]):
+            continue
+        n += 1
+        stems[_stem(rel)] = rel
+        ext = _ext(rel)
+        if ext not in (".md", ".canvas", ".base"):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        if ext == ".md":
+            fm = _parse_frontmatter(text)
+            if fm is not None:
+                notes_fm.append((rel, fm))
+        elif ext == ".canvas":
+            canvases.append((rel, text))
+        else:
+            bases.append((rel, text))
+
+    findings = []
+
+    # 属性类型漂移
+    types, examples = defaultdict(set), defaultdict(list)
+    for rel, fm in notes_fm:
+        for k, v in fm.items():
+            types[k].add(_infer_type(v))
+            if len(examples[k]) < 3:
+                examples[k].append("%s=%s(%s)" % (Path(rel).name, str(v)[:24], _infer_type(v)))
+    # 空值 = 未设置，不算类型漂移；只有 >=2 种"有值"类型才算
+    drift = ["属性 %s 类型不一致：%s ｜ %s" % (k, "/".join(sorted(ts - {"空"})), "；".join(examples[k][:2]))
+             for k, ts in types.items() if len(ts - {"空"}) >= 2]
+    if drift:
+        findings.append(_finding("obsidian.property_type_drift", "obsidian", "medium",
+                                 "同名属性类型不一致", drift[:max_items]))
+
+    # frontmatter 字段命名漂移
+    present = set()
+    for _, fm in notes_fm:
+        present |= set(fm)
+    schema = ["同义字段并存：%s" % " / ".join(sorted(present & grp))
+              for grp in SYNONYM_GROUPS if len(present & grp) >= 2]
+    if schema:
+        findings.append(_finding("obsidian.frontmatter_schema_drift", "obsidian", "medium",
+                                 "frontmatter 字段命名不统一", schema[:max_items]))
+
+    # canvas 引用失效
+    broken = []
+    for rel, text in canvases:
+        try:
+            data = json.loads(text)
+        except Exception:
+            continue
+        nodes = data.get("nodes") if isinstance(data, dict) else None
+        for node in nodes or []:
+            ref = str((node or {}).get("file") or "").strip()
+            if ref and not _resolve_ref(ref, stems):
+                broken.append("%s -> %s" % (rel, ref))
+    if broken:
+        findings.append(_finding("obsidian.canvas_drift", "obsidian", "medium",
+                                 "canvas 引用的笔记或节点失效", broken[:max_items]))
+
+    # Bases 属性缺失
+    have = set()
+    for _, fm in notes_fm:
+        have |= set(fm)
+    base_miss = []
+    for rel, text in bases:
+        miss = sorted(x for x in _base_properties(text) if x not in have)
+        if miss:
+            base_miss.append("%s 引用的属性无笔记提供：%s" % (rel, "、".join(miss)))
+    if base_miss:
+        findings.append(_finding("obsidian.bases_property_mismatch", "obsidian", "medium",
+                                 "Bases 视图依赖的属性缺失或类型不符", base_miss[:max_items]))
+
+    return findings
 
 
 # ------------------------------------------------------------------ IO 适配器
@@ -330,10 +537,11 @@ def load_vault_checks(path=None):
 
 def scan_vault(vault_dir=None, max_files=4000):
     """读真实知识库，跑全部 auto=yes 的 Obsidian 检查。"""
+    root = Path(vault_dir or VAULT_DIR)
     files = load_vault_index()
     if not files:
-        files = _index_from_dir(Path(vault_dir or VAULT_DIR), max_files=max_files)
-    return check_vault(files, load_vault_checks())
+        files = _index_from_dir(root, max_files=max_files)
+    return check_vault(files, load_vault_checks()) + check_vault_content(root, max_files=max_files)
 
 
 def _index_from_dir(root: Path, max_files=4000):

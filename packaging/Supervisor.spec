@@ -6,12 +6,14 @@ HERE = Path(SPECPATH).resolve()
 APP = HERE.parent
 HIDDEN = ["vault_ops", "vault_classify", "vault_priority", "vault_ops_batch",
           "learn", "brain", "pc_guard", "judge", "codex_trust", "research",
-          "supervisor_ui", "paths"]
+          "supervisor_ui", "paths", "checkers", "failure_modes", "plugins_status"]
 GUI_DATAS = [
     (str(APP / "home.ico"), "."),
     (str(APP / "config.example.json"), "."),
     (str(APP / "rules_hard.json"), "."),
     (str(APP / "rubrics"), "rubrics"),
+    # 两个插件随包发布（管家界面读它 + 可一键装进知识库）
+    (str(APP / "plugins"), "plugins"),
 ]
 
 a_gui = Analysis(

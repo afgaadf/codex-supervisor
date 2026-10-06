@@ -816,6 +816,18 @@ class PagesMixin:
         wrap.setLayout(k)
         v.addWidget(wrap)
 
+        try:
+            import plugins_status as PS
+            _st = PS.codex_status()
+            f, bv = card(v, "Codex 监督插件",
+                         "让 Codex 在声称完成前先找管家自查；插件把状态汇报到这里。")
+            line(bv, "状态", "%s ｜ %s" % (_st.get("state"), _st.get("note")), t, 160)
+            line(bv, "版本", _st.get("version") or "—", t, 60)
+            line(bv, "最近汇报", "%s ｜ %s" % (_st.get("last_run"), _st.get("summary") or "—"), t, 160)
+            line(bv, "插件源码", str(PS.CODEX_PLUGIN_SRC), t, 160)
+        except Exception:
+            pass
+
         f, bv = card(v, "判定历史（最近 %d 轮）" % min(len(judged), 12),
                      "时间 · 结论 · 是否联网核对 · 判据")
         if not judged:
@@ -922,6 +934,27 @@ class PagesMixin:
         line(bv, "它自己做了", "；".join(did) if did else "（本轮没有需要动手的）", t, 110)
         need = (last.get("need_human") or [])[:2]
         line(bv, "需要你", "；".join(need) if need else "不用你管", t, 110)
+
+        try:
+            import plugins_status as PS
+            _st = PS.obsidian_status()
+            f, bv = card(v, "Obsidian 管家插件",
+                         "装进知识库后，体检改在 Obsidian 进程内跑：更快、有事件驱动；结果汇报到这里。")
+            line(bv, "状态", "%s ｜ %s" % (_st.get("state"), _st.get("note")), t, 160)
+            line(bv, "版本", _st.get("version") or "—", t, 60)
+            line(bv, "最近汇报", "%s ｜ %s" % (_st.get("last_run"), _st.get("summary") or "—"), t, 160)
+            line(bv, "安装路径", _st.get("install_path"), t, 160)
+            _row = QWidget()
+            _h = QHBoxLayout(_row)
+            _h.setContentsMargins(0, 0, 0, 0)
+            _b = QPushButton("装进知识库")
+            _b.setObjectName("primary")
+            _b.clicked.connect(self.plugin_install_obsidian)
+            _h.addWidget(_b)
+            _h.addStretch(1)
+            bv.addWidget(_row)
+        except Exception:
+            pass
 
 
     def pg_pc(self, v):

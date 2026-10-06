@@ -1,0 +1,13 @@
+/* 管家监督 — 极简样式，仅用于状态提示；不引入任何外部资源 */
+
+.codex-supervisor-status {
+  font-variant-numeric: tabular-nums;
+}
+
+.codex-supervisor-status.is-warn {
+  color: var(--text-warning, #d19a00);
+}
+
+.codex-supervisor-status.is-error {
+  color: var(--text-error, #d14a3c);
+}

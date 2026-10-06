@@ -700,6 +700,14 @@ class Main(PagesMixin, QMainWindow):
                             "inbox_stale": stale, "big_note": big, "uncommitted": unc},
                 "items": items, "local": True}
 
+    def plugin_install_obsidian(self):
+        """把 Obsidian 管家插件复制进知识库（人点了才做）。"""
+        def _run():
+            import plugins_status as PS
+            ok, msg = PS.install_obsidian_plugin()
+            return {"ok": ok, "msg": msg}
+        self.pc_bg(_run, "安装插件中…", lambda r: self.pc_note(str(r.get("msg"))[:200]))
+
     def vault_ops_run(self):
         def _run():
             VO = fresh("vault_ops")

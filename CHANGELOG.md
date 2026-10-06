@@ -6,6 +6,35 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-07
+
+### Added
+- **Codex 插件**（`plugins/codex/`）：一个 skill（`SKILL.md`，让 Codex 在声称完成前先自查）
+  + 一个纯标准库 **stdio MCP 服务器**（`mcp_server.py`），暴露 3 个工具：
+  `supervisor_status`（当前分数/等级/维护模式）、`failure_modes`（失败模式库）、
+  `check_text`（对一段文本做确定性自检）。附 `install.py` 幂等安装器。
+- **Obsidian 插件**（`plugins/obsidian/`）：标准社区插件（manifest/main.js/styles.css/
+  versions.json），体检改在 Obsidian 进程内跑（事件驱动 + 5 秒节流），结果写成报告给管家。
+- **管家界面显示两个插件**：Codex 页显示 Codex 监督插件状态，Obsidian 页显示管家插件
+  状态并带「装进知识库」按钮（`plugins_status.py`）。
+- 补完欠账 A11 的 6 个确定性检查器：`codex.unbounded_retry`、`codex.no_library_lookup`、
+  `obsidian.canvas_drift`、`obsidian.bases_property_mismatch`、`obsidian.property_type_drift`、
+  `obsidian.frontmatter_schema_drift`（读正文的 frontmatter / `.canvas` / `.base`）。
+- 打包随带 `plugins/`；`Supervisor.spec` 增加 `checkers`/`failure_modes`/`plugins_status`
+  隐藏导入。
+
+### Fixed
+- 属性类型漂移不再把「空值」当成一种类型；块列表（`key:` + 缩进 `- `）不再误判为「空」；
+  多行标量（`key: |`）不再误判为「空」。
+
+### Tests
+- 新增 `tests/test_plugins_status.py`（15 条）与 `tests/test_checkers_content.py`（16 条）；
+  全量 **106 条全绿**。
+
+### Known
+- Obsidian 插件只有替身 mock 验证，尚未在真实 Obsidian 里跑过（欠账 A12）。
+- Codex 插件尚未在真实 Codex 会话里注册/调用过（欠账 A13）。
+
 ## [0.5.0] - 2026-10-07
 
 ### Added
