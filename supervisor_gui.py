@@ -29,11 +29,12 @@ if str(_HERE) not in sys.path:
 
 from gui_data import (ALERT_ZH, APP_DIR, AUDIT_ZH, GLOSSARY, GLOSSARY_LONG,  # noqa: E402
                       SIZE_HIST)
+from paths import CODEX_HOME, DATA_DIR, VAULT_DIR   # noqa: E402
 
-LOG_DIR = APP_DIR / "logs"
+LOG_DIR = DATA_DIR / "logs"
 HEARTBEAT = LOG_DIR / "app.heartbeat"     # 看门狗靠它判断"窗口还在"
 STOPPED = LOG_DIR / "app.stopped"         # 你主动退出 → 看门狗不再拉起
-SETTINGS = APP_DIR / "settings.json"
+SETTINGS = DATA_DIR / "settings.json"
 ICON = APP_DIR / "home.ico"          # 电脑管家图标（盾+勾）
 
 from PySide6.QtCore import QPointF, Qt, QThread, QTimer, Signal, QUrl
@@ -49,8 +50,6 @@ import supervisor_ui as ui
 from gui_util import (RANK, elide, fmt_bytes, hhmmss, read_json, safe, tail_jsonl,
                       worse, _alive, _set_text, _set_enabled, fresh, _load_pc_state)
 from version import __version__
-from paths import VAULT_DIR
-from paths import CODEX_HOME
 from gui_pages import PagesMixin   # Stage A1 拆出的页面方法
 from gui_widgets import (LEVELS, chip, tag, card, line, empty, kpi, four_verdict,
                           ToolTile, Sparkline, page_header)   # Stage 2b 拆出的小部件
@@ -433,7 +432,7 @@ class Main(PagesMixin, QMainWindow):
             alerts=tail_jsonl(ui.ALERTS, 40),
             audit=tail_jsonl(ui.AUDIT, 40),
             judged=tail_jsonl(ui.JUDGE, 8),
-            brain=read_json(APP_DIR / "brain.json", {}),
+            brain=read_json(DATA_DIR / "brain.json", {}),
             win=safe(ui.running_window, {}),
             sups=safe(ui.active_supervisors, []),
             prot=safe(ui.protection_status, {}),
@@ -623,7 +622,7 @@ class Main(PagesMixin, QMainWindow):
 
     def _level_changes(self):
         try:
-            return len([a for a in tail_jsonl(APP_DIR / "alerts.jsonl", 500)
+            return len([a for a in tail_jsonl(DATA_DIR / "alerts.jsonl", 500)
                         if a.get("kind") == "level_change"])
         except Exception:
             return 0
@@ -636,9 +635,9 @@ class Main(PagesMixin, QMainWindow):
 
     # -------------------------------------------------- Obsidian 库
     def _vault_state(self):
-        idx = read_json(APP_DIR / "vault_index.json", {}) or {}
-        chk = read_json(APP_DIR / "vault_checks.json", {}) or {}
-        evs = tail_jsonl(APP_DIR / "vault_events.jsonl", 60)
+        idx = read_json(DATA_DIR / "vault_index.json", {}) or {}
+        chk = read_json(DATA_DIR / "vault_checks.json", {}) or {}
+        evs = tail_jsonl(DATA_DIR / "vault_events.jsonl", 60)
         return idx, chk, evs
 
     def _vault_level(self, chk):

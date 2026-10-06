@@ -14,9 +14,10 @@ import json, os, socketserver, sys, threading, time
 from datetime import datetime
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
+from paths import DATA_DIR, APP_DIR
+
 sys.path.insert(0, str(APP_DIR))
-LOG_DIR = APP_DIR / "logs"
+LOG_DIR = DATA_DIR / "logs"
 LOG = LOG_DIR / "butler.log"
 HB = LOG_DIR / "butler.heartbeat"
 PID = LOG_DIR / "butler.pid"

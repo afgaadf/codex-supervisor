@@ -13,10 +13,10 @@ import json, shutil, sys, time
 from datetime import datetime
 from pathlib import Path
 
-from paths import APP_DIR, VAULT_DIR as V
+from paths import APP_DIR, VAULT_DIR as V, DATA_DIR
 ROOT = V / "90_归档" / "Nexus开发历史"
 MERGED = ROOT / "_合并"
-BACKUP = APP_DIR / "vault_merge_backup" / datetime.now().strftime("%Y%m%d-%H%M%S")
+BACKUP = DATA_DIR / "vault_merge_backup" / datetime.now().strftime("%Y%m%d-%H%M%S")
 SKIP = {"_合并", "概览"}
 
 

@@ -14,14 +14,13 @@ import json, shutil, subprocess, time
 from datetime import datetime
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
-from paths import VAULT_DIR as V
-IDX = APP_DIR / "vault_index.json"
-CHK = APP_DIR / "vault_checks.json"
-CLS = APP_DIR / "vault_classes.json"
-METRICS = APP_DIR / "vault_metrics.jsonl"
-OPS_LOG = APP_DIR / "vault_ops_log.jsonl"
-BACKUP_ROOT = APP_DIR / "vault_ops_backup"
+from paths import VAULT_DIR as V, DATA_DIR, APP_DIR
+IDX = DATA_DIR / "vault_index.json"
+CHK = DATA_DIR / "vault_checks.json"
+CLS = DATA_DIR / "vault_classes.json"
+METRICS = DATA_DIR / "vault_metrics.jsonl"
+OPS_LOG = DATA_DIR / "vault_ops_log.jsonl"
+BACKUP_ROOT = DATA_DIR / "vault_ops_backup"
 
 
 def _load(p, d=None):
@@ -402,7 +401,7 @@ def auto_ops(commit=True):
            "after": {k: after.get(k) for k in ("broken_links", "missing_frontmatter", "unclassified", "uncommitted")}}
     try:
         import json as _j
-        with (APP_DIR / "vault_auto_ops.jsonl").open("a", encoding="utf-8") as f:
+        with (DATA_DIR / "vault_auto_ops.jsonl").open("a", encoding="utf-8") as f:
             f.write(_j.dumps(rec, ensure_ascii=False) + "\n")
     except Exception:
         pass
@@ -411,7 +410,7 @@ def auto_ops(commit=True):
 
 def last_auto():
     try:
-        lines = (APP_DIR / "vault_auto_ops.jsonl").read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = (DATA_DIR / "vault_auto_ops.jsonl").read_text(encoding="utf-8", errors="replace").splitlines()
         return json.loads(lines[-1]) if lines else {}
     except Exception:
         return {}

@@ -9,10 +9,10 @@ from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
 
-from paths import APP_DIR, VAULT_DIR as V
+from paths import APP_DIR, VAULT_DIR as V, DATA_DIR
 ARCH = V / "90_归档" / "Nexus开发历史"
 GLANCE = ARCH / "概览"
-BACKUP = APP_DIR / "vault_merge_backup" / ("reorg-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+BACKUP = DATA_DIR / "vault_merge_backup" / ("reorg-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
 TOC = V / "知识库总目录.md"
 
 

@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from paths import DATA_DIR
+
 from gui_data import APP_DIR
 
 RANK = {"NORMAL": 0, "WATCH": 1, "DEGRADED": 2, "BLOCKED": 3}
@@ -135,6 +137,6 @@ def fresh(modname):
 def _load_pc_state():
     try:
         import json as _j
-        return _j.loads((APP_DIR / "pc_state.json").read_text(encoding="utf-8"))
+        return _j.loads((DATA_DIR / "pc_state.json").read_text(encoding="utf-8"))
     except Exception:
         return {}

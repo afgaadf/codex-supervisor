@@ -54,13 +54,12 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from paths import CODEX_HOME
+from paths import CODEX_HOME, DATA_DIR, APP_DIR
 
-APP_DIR = Path(__file__).resolve().parent
-LOG_DIR = APP_DIR / "logs"
-BRAIN_JSON = APP_DIR / "brain.json"
+LOG_DIR = DATA_DIR / "logs"
+BRAIN_JSON = DATA_DIR / "brain.json"
 BRAIN_LOG = LOG_DIR / "brain.jsonl"          # 大脑自己做过什么（审计用）
-SIGNALS = APP_DIR / "signals.json"           # 大脑**可以**提议扩充的信号清单（数据）
+SIGNALS = DATA_DIR / "signals.json"           # 大脑**可以**提议扩充的信号清单（数据）
 THINK_LOG = LOG_DIR / "brain_thinks.jsonl"   # 每次「想一轮」的结果（含被守卫挡下的）
 THINK_TS = LOG_DIR / "brain_last_think"      # 上次动脑的时间（节流用）
 AD = CODEX_HOME / "anti-degradation"
@@ -69,7 +68,7 @@ AD = CODEX_HOME / "anti-degradation"
 K_RULES = AD / "rules" / "rules.json"
 K_STATE = AD / "state" / "session.json"
 K_EVENTS = AD / "state" / "events.jsonl"
-K_JUDGE = APP_DIR / "judgments.jsonl"
+K_JUDGE = DATA_DIR / "judgments.jsonl"
 K_SIZE = LOG_DIR / "size_history.jsonl"
 K_SCORE = LOG_DIR / "score_history.jsonl"
 K_APP = LOG_DIR / "app.log"
@@ -468,7 +467,7 @@ def _already_proposed():
 
 def _human_verdicts(limit=6):
     """人否决 / 撤回过的提案 —— 让大脑从人的否决里学，不要反复提同类。"""
-    log = _jsonl(APP_DIR / "changes" / "log.jsonl", 2000)
+    log = _jsonl(DATA_DIR / "changes" / "log.jsonl", 2000)
     req = {}
     for r in log:
         if r.get("action") == "request":

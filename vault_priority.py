@@ -15,12 +15,11 @@ from __future__ import annotations
 import json, time
 from pathlib import Path
 
-from paths import VAULT_DIR
+from paths import VAULT_DIR, DATA_DIR, APP_DIR
 from datetime import datetime, timezone
 
-APP_DIR = Path(__file__).resolve().parent
-IDX = APP_DIR / "vault_index.json"
-CHK = APP_DIR / "vault_checks.json"
+IDX = DATA_DIR / "vault_index.json"
+CHK = DATA_DIR / "vault_checks.json"
 OUT_MD = None  # 由 report_to_vault() 设置
 
 RULES = [

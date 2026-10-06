@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 r"""pc_guard.py —— 监督者 · 电脑管家（本机体检 + 受控动作）
 
 依据（T1，2026-10-06/07 联网核对）：
@@ -13,14 +13,15 @@ import json, os, shutil, subprocess, sys, tempfile, time
 from datetime import datetime, timezone
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
-LOG_DIR = APP_DIR / "logs"
-PC_STATE = APP_DIR / "pc_state.json"          # 最近一次体检结果
-PC_AUDIT = APP_DIR / "pc_audit.jsonl"         # 管家动作审计
+from paths import DATA_DIR, APP_DIR
+
+LOG_DIR = DATA_DIR / "logs"
+PC_STATE = DATA_DIR / "pc_state.json"          # 最近一次体检结果
+PC_AUDIT = DATA_DIR / "pc_audit.jsonl"         # 管家动作审计
 PC_HISTORY = LOG_DIR / "pc_history.jsonl"     # 采样曲线（CPU/内存/磁盘）
 PC_ALERTS = LOG_DIR / "pc_alerts.jsonl"       # 越过阈值的告警历史
-STARTUP_BK = APP_DIR / "startup_backups.json" # 启动项备份（禁用前先存原值）
-FOLDER_BK = APP_DIR / "startup_folder_backup" # 启动文件夹项备份（移动，不删）
+STARTUP_BK = DATA_DIR / "startup_backups.json" # 启动项备份（禁用前先存原值）
+FOLDER_BK = DATA_DIR / "startup_folder_backup" # 启动文件夹项备份（移动，不删）
 
 PWSH = shutil.which("powershell") or shutil.which("pwsh") or "powershell"
 

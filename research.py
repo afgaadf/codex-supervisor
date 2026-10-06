@@ -32,8 +32,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
-LOG_DIR = APP_DIR / "logs"
+from paths import DATA_DIR, APP_DIR
+
+LOG_DIR = DATA_DIR / "logs"
 CACHE = LOG_DIR / "research.jsonl"
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

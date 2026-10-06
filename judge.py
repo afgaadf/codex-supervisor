@@ -28,12 +28,11 @@ import json, os, re, time, urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
 
-from paths import CODEX_HOME as CODEX
-APP_DIR = Path(__file__).resolve().parent
+from paths import CODEX_HOME as CODEX, DATA_DIR, APP_DIR
 
 RUBRIC_DIR = APP_DIR / "rubrics"
 REGISTRY = RUBRIC_DIR / "_registry.json"
-LOG_DIR = APP_DIR / "logs"
+LOG_DIR = DATA_DIR / "logs"
 RUBRIC_MAX = int(os.environ.get("SUP_JUDGE_RUBRIC_MAX") or 5200)
 
 # 推理强度 / 输出预算 / 超时：可用环境变量覆盖（自检用）

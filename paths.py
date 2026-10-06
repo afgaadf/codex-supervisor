@@ -19,8 +19,17 @@ if getattr(sys, "frozen", False):
     APP_DIR = Path(sys.executable).resolve().parent
 else:
     APP_DIR = Path(__file__).resolve().parent
-CONFIG_FILE = APP_DIR / "config.json"
-EXAMPLE_FILE = APP_DIR / "config.example.json"
+EXAMPLE_FILE = APP_DIR / "config.example.json"        # 随包发布的只读示例
+
+# 可写数据目录：
+#   · 未打包（开发/绿色版）→ 就放程序旁边（保持老行为）
+#   · 已打包（MSIX/exe，安装目录只读）→ 放 %LOCALAPPDATA%\CodexSupervisor
+if getattr(sys, "frozen", False):
+    DATA_DIR = Path(os.environ.get("LOCALAPPDATA") or (HOME / "AppData" / "Local")) / "CodexSupervisor"
+else:
+    DATA_DIR = APP_DIR
+
+CONFIG_FILE = DATA_DIR / "config.json"
 
 
 def _load_config() -> dict:

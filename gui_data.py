@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
-SIZE_HIST = APP_DIR / "logs" / "size_history.jsonl"
+from paths import DATA_DIR, APP_DIR
+
+SIZE_HIST = DATA_DIR / "logs" / "size_history.jsonl"
 
 
 GLOSSARY_LONG = {

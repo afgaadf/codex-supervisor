@@ -10,11 +10,10 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
+from paths import VAULT_DIR as V, DATA_DIR, APP_DIR
 
-APP_DIR = Path(__file__).resolve().parent
-IDX = APP_DIR / "vault_index.json"
-OUT_JSON = APP_DIR / "vault_classes.json"
-from paths import VAULT_DIR as V
+IDX = DATA_DIR / "vault_index.json"
+OUT_JSON = DATA_DIR / "vault_classes.json"
 
 CLASSIFY = [
     ("规范标准", ["规范", "标准", "铁律", "清单", "体系", "指南", "SOP", "手册", "要求", "SOP"]),

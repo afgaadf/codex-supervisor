@@ -16,10 +16,10 @@ from PySide6.QtWidgets import (QAbstractItemView, QFrame, QHBoxLayout, QHeaderVi
                                QVBoxLayout, QWidget)
 
 from gui_data import ALERT_ZH, APP_DIR, AUDIT_ZH, GLOSSARY, GLOSSARY_LONG, SIZE_HIST
-from paths import CODEX_HOME
 from gui_util import (_load_pc_state, elide, fmt_bytes, fresh, hhmmss, read_json, tail_jsonl)
 from gui_widgets import (LEVELS, Sparkline, card, chip, empty, four_verdict, kpi, line,
                          page_header, tag)
+from paths import CODEX_HOME, DATA_DIR
 
 
 class PagesMixin:
@@ -344,7 +344,7 @@ class PagesMixin:
             last = VO.last_auto() or {}
         except Exception:
             m, hs, last = {}, 0, {}
-        js = [j for j in tail_jsonl(APP_DIR / "judgments.jsonl", 40)
+        js = [j for j in tail_jsonl(DATA_DIR / "judgments.jsonl", 40)
               if j.get("action") == "judged" and not j.get("selftest")]
         lastj = next((j for j in reversed(js) if j.get("checks")), {})
         ck = lastj.get("checks") or {}
@@ -431,7 +431,7 @@ class PagesMixin:
              "去处理" if d.get("corr") else "打开"),
             ("改监督者的申请", "%d 条待批" % len(d.get("changes") or []), "changes",
              "去批" if d.get("changes") else "打开"),
-            ("告警与审计", "%d 条审计记录" % len(tail_jsonl(APP_DIR / "audit.jsonl", 5000)), "logs"),
+            ("告警与审计", "%d 条审计记录" % len(tail_jsonl(DATA_DIR / "audit.jsonl", 5000)), "logs"),
         ])
         group("知识库（自动运维）", [
             ("Obsidian 库", "健康分 %s /100 · 断链 %s · 缺 fm %s · 收件箱 %s · 未提交 %s" % (
@@ -491,7 +491,7 @@ class PagesMixin:
         line(b1, "原因", "；".join(sup.get("reasons") or []) or "没有扣分项", t, 70)
         c2 = sup.get("counters") or {}
         try:
-            _jj = [j for j in tail_jsonl(APP_DIR / "judgments.jsonl", 30) if j.get("action") == "judged"]
+            _jj = [j for j in tail_jsonl(DATA_DIR / "judgments.jsonl", 30) if j.get("action") == "judged"]
             _lastj = _jj[-1] if _jj else {}
         except Exception:
             _lastj = {}
@@ -539,7 +539,7 @@ class PagesMixin:
         v.addWidget(row0)
 
         # ---- 四个必答（这就是它存在的理由）
-        _js = [j for j in tail_jsonl(APP_DIR / "judgments.jsonl", 40) if j.get("action") == "judged"]
+        _js = [j for j in tail_jsonl(DATA_DIR / "judgments.jsonl", 40) if j.get("action") == "judged"]
         _last = next((j for j in reversed(_js) if j.get("checks")), {})
         _ck = _last.get("checks") or {}
         f, bv = card(v, "四个必答（最近一轮）",
@@ -591,7 +591,7 @@ class PagesMixin:
         # 本机环境（辅助，不是核心）
         try:
             import pc_guard
-            _pc = read_json(APP_DIR / "pc_state.json", {}) or {}
+            _pc = read_json(DATA_DIR / "pc_state.json", {}) or {}
             _pcs = _pc.get("summary") or {}
             _pcl = _pc.get("level") or "—"
         except Exception:
@@ -777,7 +777,7 @@ class PagesMixin:
             _m = L.metrics()
         except Exception:
             _m = {}
-        judged = tail_jsonl(APP_DIR / "judgments.jsonl", 40)
+        judged = tail_jsonl(DATA_DIR / "judgments.jsonl", 40)
         judged = [j for j in judged if j.get("action") == "judged"]
         last = judged[-1] if judged else {}
         corr = d.get("corr") or []
@@ -864,7 +864,7 @@ class PagesMixin:
         line(bv, "24h 注入", "%d 次（hook 日志 INJECT 计数）" % self._inject_24h(), t, 110)
         line(bv, "等级变化", "%d 次（alerts 里的 level_change）" % self._level_changes(), t, 110)
         line(bv, "小工具信任", "%d 条 handler，%d 条待处理" % (len(d.get("hooks") or []), len(d.get("need_hooks") or [])), t, 110)
-        line(bv, "审计条数", "%d 条（audit.jsonl）" % len(tail_jsonl(APP_DIR / "audit.jsonl", 5000)), t, 110)
+        line(bv, "审计条数", "%d 条（audit.jsonl）" % len(tail_jsonl(DATA_DIR / "audit.jsonl", 5000)), t, 110)
 
 
     def pg_vault(self, v):
@@ -915,7 +915,7 @@ class PagesMixin:
         except Exception as e:
             have = False
             card(v, "电脑管家不可用", "导入 pc_guard 失败：%s" % e)
-        st = read_json(APP_DIR / "pc_state.json", {}) or {}
+        st = read_json(DATA_DIR / "pc_state.json", {}) or {}
         sm = st.get("summary") or {}
         lvl = st.get("level") or "WATCH"
         items = st.get("items") or []

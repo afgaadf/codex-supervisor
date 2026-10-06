@@ -21,8 +21,9 @@ import sys
 import time
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
-LOG_DIR = APP_DIR / "logs"
+from paths import APP_DIR, DATA_DIR, APP_DIR
+
+LOG_DIR = DATA_DIR / "logs"
 APP = APP_DIR / "supervisor_gui.py"      # 2026-10-06 起：新界面（PySide6）；旧 Tk 版留在 supervisor_app.py 当后备
 WD_LOG = LOG_DIR / "watchdog.log"
 APP_OUT = LOG_DIR / "app.out.log"

@@ -15,26 +15,25 @@ import hashlib, http.server, json, re as _re, secrets, socketserver, subprocess,
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from paths import CODEX_HOME
+from paths import APP_DIR, CODEX_HOME, DATA_DIR, APP_DIR
 
 CODEX_CFG = str(CODEX_HOME / "config.toml")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import codex_trust as ct  # noqa: E402
 
-APP_DIR = Path(__file__).resolve().parent
-AUDIT = APP_DIR / "audit.jsonl"
-ALERTS = APP_DIR / "alerts.jsonl"
-REQUESTS = APP_DIR / "requests.jsonl"
-CONV = APP_DIR / "conversations.jsonl"
-CHANGES = APP_DIR / "changes"
-JUDGE = APP_DIR / "judgments.jsonl"
-CORRECTIONS = APP_DIR / "corrections.json"
-VAULT_INDEX = APP_DIR / "vault_index.json"      # Obsidian 插件推来的全库索引
-VAULT_EVENTS = APP_DIR / "vault_events.jsonl"   # 插件推来的实时事件流
-VAULT_CHECKS = APP_DIR / "vault_checks.json"    # 插件跑出来的规矩体检结果
-VAULT_CMDS = APP_DIR / "vault_commands.jsonl"   # 监督者下发给插件的命令（只允许新建/追加/移动）
-PLUGIN_TOKEN = APP_DIR / "plugin_token.txt"     # 插件读它来鉴权（同用户可读）
+AUDIT = DATA_DIR / "audit.jsonl"
+ALERTS = DATA_DIR / "alerts.jsonl"
+REQUESTS = DATA_DIR / "requests.jsonl"
+CONV = DATA_DIR / "conversations.jsonl"
+CHANGES = DATA_DIR / "changes"
+JUDGE = DATA_DIR / "judgments.jsonl"
+CORRECTIONS = DATA_DIR / "corrections.json"
+VAULT_INDEX = DATA_DIR / "vault_index.json"      # Obsidian 插件推来的全库索引
+VAULT_EVENTS = DATA_DIR / "vault_events.jsonl"   # 插件推来的实时事件流
+VAULT_CHECKS = DATA_DIR / "vault_checks.json"    # 插件跑出来的规矩体检结果
+VAULT_CMDS = DATA_DIR / "vault_commands.jsonl"   # 监督者下发给插件的命令（只允许新建/追加/移动）
+PLUGIN_TOKEN = DATA_DIR / "plugin_token.txt"     # 插件读它来鉴权（同用户可读）
 STATE_DB = CODEX_HOME / "state_5.sqlite"
 HOST, PORT = "127.0.0.1", 8765
 TOKEN = secrets.token_urlsafe(24)
@@ -488,11 +487,17 @@ def active_supervisors():
 
 
 # 常驻规矩：从**电脑管家自己保存的** rules_hard.json 生成（每轮注入给 AI）
-RULES_HARD = APP_DIR / "rules_hard.json"
+RULES_HARD = DATA_DIR / "rules_hard.json"
 
 
 def load_hard_rules(only_enabled=True):
     try:
+        if not RULES_HARD.exists():                 # 首次运行：从随包只读副本播种
+            try:
+                RULES_HARD.write_text((APP_DIR / "rules_hard.json").read_text(encoding="utf-8"),
+                                      encoding="utf-8")
+            except Exception:
+                pass
         d = json.loads(RULES_HARD.read_text(encoding="utf-8"))
         rows = d.get("rules") or []
     except Exception:
@@ -1097,7 +1102,7 @@ class H(http.server.BaseHTTPRequestHandler):
                                                "supervisor": supervisor_status()}, ensure_ascii=False))
         if self.path == "/api/pc/state":
             try:
-                st = json.loads((APP_DIR / "pc_state.json").read_text(encoding="utf-8"))
+                st = json.loads((DATA_DIR / "pc_state.json").read_text(encoding="utf-8"))
             except Exception:
                 st = {"ok": False, "error": "还没体检过（点「一键体检」）"}
             return self._send(200, json.dumps(st, ensure_ascii=False))

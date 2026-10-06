@@ -12,13 +12,12 @@ from __future__ import annotations
 import json, time
 from datetime import datetime, timezone
 from pathlib import Path
-from paths import CODEX_HOME
+from paths import CODEX_HOME, DATA_DIR, APP_DIR
 
-APP_DIR = Path(__file__).resolve().parent
-LESSONS = APP_DIR / "lessons.jsonl"
-CANDS = APP_DIR / "learn_candidates.json"
-JUDGE = APP_DIR / "judgments.jsonl"
-CHANGES_LOG = APP_DIR / "changes" / "log.jsonl"
+LESSONS = DATA_DIR / "lessons.jsonl"
+CANDS = DATA_DIR / "learn_candidates.json"
+JUDGE = DATA_DIR / "judgments.jsonl"
+CHANGES_LOG = DATA_DIR / "changes" / "log.jsonl"
 EVENTS = CODEX_HOME / "anti-degradation" / "state" / "events.jsonl"
 
 
