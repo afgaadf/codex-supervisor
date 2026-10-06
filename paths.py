@@ -71,3 +71,28 @@ def describe() -> dict:
         "vault_dir": str(VAULT_DIR),
         "vault_exists": VAULT_DIR.exists(),
     }
+
+# 判据目录：随包发布的是只读母本，用户可改的是可写副本
+RUBRIC_SRC = APP_DIR / "rubrics"
+RUBRIC_DIR = DATA_DIR / "rubrics"
+
+
+def seed_rubrics() -> None:
+    """首次运行：把随包判据拷进可写目录（之后用户可改）。幂等、失败不抛。"""
+    try:
+        if not RUBRIC_SRC.is_dir():
+            return
+        for f in RUBRIC_SRC.rglob("*"):
+            if not f.is_file():
+                continue
+            dst = RUBRIC_DIR / f.relative_to(RUBRIC_SRC)
+            if not dst.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_bytes(f.read_bytes())
+    except Exception:
+        pass
+
+
+def is_packaged() -> bool:
+    """是否运行在打包（MSIX/exe）环境里 —— 安装目录只读，不许自改代码。"""
+    return bool(getattr(sys, "frozen", False))

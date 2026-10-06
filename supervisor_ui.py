@@ -15,7 +15,7 @@ import hashlib, http.server, json, re as _re, secrets, socketserver, subprocess,
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from paths import APP_DIR, CODEX_HOME, DATA_DIR, APP_DIR
+from paths import APP_DIR, CODEX_HOME, DATA_DIR, is_packaged, APP_DIR
 
 CODEX_CFG = str(CODEX_HOME / "config.toml")
 
@@ -311,6 +311,9 @@ def _change_dir(rid):
 
 def apply_change(rid, by="你"):
     """由监督者自己动手：先备份，再写入。**谁批的也记账**（窗口里点的也记）。"""
+    # 【大厂标准】打包版 = 安装目录只读，不做"自改代码"；改动走配置或版本更新。
+    if is_packaged():
+        return False, "打包版不支持改程序代码（安装目录只读）。请改配置，或安装新版本。"
     rec = next((r for r in _jsonl(CHANGES / "log.jsonl", 2000)
                 if r.get("id") == rid and r.get("action") == "request"), None)
     if not rec:

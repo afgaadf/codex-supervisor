@@ -115,7 +115,7 @@ def research_rubric(question, rubric="2d-video.md", title=None):
         lines.append("- [%d] %s — %s" % (x["id"], x["title"][:70], x["url"]))
     block = "\n".join(lines)
 
-    f = APP_DIR / "rubrics" / rubric
+    f = RUBRIC_DIR / rubric
     cur = f.read_text(encoding="utf-8", errors="replace").rstrip()
     new = cur + "\n" + block + "\n"
     try:

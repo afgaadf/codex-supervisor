@@ -28,9 +28,10 @@ import json, os, re, time, urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
 
-from paths import CODEX_HOME as CODEX, DATA_DIR, APP_DIR
+from paths import CODEX_HOME as CODEX, RUBRIC_DIR, seed_rubrics, DATA_DIR, APP_DIR
 
-RUBRIC_DIR = APP_DIR / "rubrics"
+# 判据走可写副本（首次运行由 seed_rubrics 播种）
+seed_rubrics()
 REGISTRY = RUBRIC_DIR / "_registry.json"
 LOG_DIR = DATA_DIR / "logs"
 RUBRIC_MAX = int(os.environ.get("SUP_JUDGE_RUBRIC_MAX") or 5200)
