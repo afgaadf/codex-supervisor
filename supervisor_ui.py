@@ -42,9 +42,12 @@ AD_STATE, AD_EVENTS, AD_RULES = AD / "state" / "session.json", AD / "state" / "e
 SESSIONS = CODEX_HOME / "sessions"
 SUPERVISOR = AD / "supervisor.py"
 STALE_MIN = 10
+VIOLATION_NOTIFY_SEC = 15 * 60
 
-_cache = {"monitor": None, "sup": None, "sup_ts": 0.0, "size0": None, "level": None}
+_cache = {"monitor": None, "sup": None, "sup_ts": 0.0, "size0": None, "level": None,
+          "violation_notified": {}}
 _lock = threading.Lock()
+_judge_lock = threading.Lock()
 
 
 def now_iso():
@@ -569,7 +572,40 @@ def dismiss_corrections(turn=""):
     export_corrections()
 
 
+def _violation_signature(vs):
+    """Give one stable key to a set of violations, ignoring order."""
+    rows = [v for v in (vs or []) if isinstance(v, dict)]
+    rules = sorted({str(v.get("rule") or "").strip() for v in rows
+                    if str(v.get("rule") or "").strip()})
+    return "count=%d;rules=%s" % (len(rows), ",".join(rules) or "unknown")
+
+
+def _violation_notify_once(vs, now=None):
+    """Allow one notification per violation signature inside a fixed window."""
+    now = time.time() if now is None else float(now)
+    sig = _violation_signature(vs)
+    seen = _cache.setdefault("violation_notified", {})
+    last = float(seen.get(sig) or 0)
+    if now - last < VIOLATION_NOTIFY_SEC:
+        return False
+    seen[sig] = now
+    cutoff = now - (VIOLATION_NOTIFY_SEC * 2)
+    for key, ts in list(seen.items()):
+        try:
+            if float(ts or 0) < cutoff:
+                del seen[key]
+        except Exception:
+            pass
+    return True
+
+
 def judge_latest_turn():
+    """Serialize judgments so the loop and manual button cannot race."""
+    with _judge_lock:
+        return _judge_latest_turn_locked()
+
+
+def _judge_latest_turn_locked():
     t = latest_turn()
     if not t or not (t.get("say") or t.get("actions")):
         return
@@ -620,7 +656,7 @@ def judge_latest_turn():
             _cache["sup_notified"] = (cache + [names])[-20:]
             alert("supervisor_on", names)
             notify("监督者", "检测到相关内容，已启用监督者：%s" % names)
-    if vs:
+    if vs and _violation_notify_once(vs):
         notify("监督者", "发现 %d 处不守规矩，已责令改正" % len(vs))
 
 

@@ -244,14 +244,14 @@ def start_backend():
         ui.export_corrections()
     except Exception:
         _log("export_corrections 失败\n" + traceback.format_exc())
-    threading.Thread(target=_guard("monitor_loop", ui.monitor_loop), daemon=True).start()
-    threading.Thread(target=_guard("brain", _brain_loop), daemon=True).start()
-    threading.Thread(target=_guard("judge_loop", ui.judge_loop), daemon=True).start()
     # 如果独立后台管家在跑，窗口不重复起引擎（避免双份监控/双份 API）
     if _butler_alive():
         _log("检测到后台管家在跑，窗口只做看板")
         return
     _log("后台管家没在跑，窗口临时兼起引擎（建议双击桌面「电脑管家-后台」）")
+    threading.Thread(target=_guard("monitor_loop", ui.monitor_loop), daemon=True).start()
+    threading.Thread(target=_guard("brain", _brain_loop), daemon=True).start()
+    threading.Thread(target=_guard("judge_loop", ui.judge_loop), daemon=True).start()
     threading.Thread(target=_guard("api", _serve_api), daemon=True).start()
     threading.Thread(target=_guard("pc_loop", _pc_loop), daemon=True).start()
     threading.Thread(target=_guard("vault_ops", _vault_ops_loop), daemon=True).start()
