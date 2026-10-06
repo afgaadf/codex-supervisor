@@ -3,7 +3,7 @@
 ## 下载
 
 - GitHub 仓库：https://github.com/afgaadf/codex-supervisor
-- 最新预发布：https://github.com/afgaadf/codex-supervisor/releases/tag/v0.2.3
+- 最新预发布：https://github.com/afgaadf/codex-supervisor/releases/tag/v0.3.0
 - **注意**：当前 MSIX 是自签名测试包，不是正式 CA 代码签名包；普通用户直接安装可能被 Windows 拒绝。
 
 **独立于 Codex 的监管程序。信任只能由人经此界面授予。**
