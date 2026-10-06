@@ -144,7 +144,16 @@ def sha256(path: Path) -> str:
     return h.hexdigest().upper()
 
 
+def _force_utf8() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
+
 def main() -> int:
+    _force_utf8()
     ap = argparse.ArgumentParser(description="把 packaging/dist/Supervisor 打成 MSIX")
     ap.add_argument("--publisher", default=os.environ.get("MSIX_PUBLISHER", DEFAULT_PUBLISHER))
     ap.add_argument("--version", default=msix_version(project_version()))
