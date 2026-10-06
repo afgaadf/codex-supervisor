@@ -6,6 +6,28 @@
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-07
+
+### Added
+- **工具回答自报版本**：`tools/list`、`initialize` 与每个工具结果都带 `plugin_version` 和
+  `mcp_pid`。这样任何调用方一眼就能看出"我在跟哪个版本说话"，不用猜。
+
+### Fixed
+- 补上 `mcp_server.py` 漏掉的 `import os`（会让 `tools/list` 直接 NameError），
+  加回归测试守住。
+- Codex 插件版本 0.1.1 → **0.1.2**。
+
+### Notes（本轮踩到的真实坑，如实记下）
+- 我改了 `mcp_server.py` 修好 `check_text` 误报后，**用管家自检仍然报同一条误报**。
+  查下去：**MCP 服务器只在 Codex 启动时加载一次，代码改了不会热重载** ——
+  Codex 里跑的还是旧进程。磁盘上的代码本地验证是 0 命中，运行中的进程仍是旧行为。
+- 这个坑**从外部无法可靠探测**（报告文件是"谁最后跑谁写"），所以改成
+  **让工具自己报版本**：调用方看到 `plugin_version` 不对就知道该重启 Codex 了。
+- 结论：**改 `plugins/codex/mcp_server.py` 之后必须重启 Codex 才生效**。
+
+### Tests
+- 新增 `tests/test_codex_plugin_selfversion.py`（4 条）；全量 **154 → 158 条全绿**。
+
 ## [0.9.0] - 2026-10-07
 
 ### Added

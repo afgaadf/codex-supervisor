@@ -91,6 +91,17 @@ def _human_age(seconds):
     return "%d 天前" % (seconds // 86400)
 
 
+
+def _disk_plugin_version(src_file):
+    """从插件源码里读它自己的版本号（不看运行中的报告）。"""
+    try:
+        import re as _re
+        text = Path(src_file).read_text(encoding="utf-8", errors="replace")
+        m = _re.search(r'PLUGIN_VERSION\s*=\s*["\']([^"\']+)', text)
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
+
 def codex_status():
     report = read_report("codex")
     skill_installed = (CODEX_SKILL_DIR / "SKILL.md").exists()
@@ -106,9 +117,39 @@ def codex_status():
         state, note = "已就绪", "插件文件在，但还没有运行报告"
     else:
         state, note = "未安装", "找不到插件文件"
+    # 运行中的 MCP 进程只在 Codex 启动时加载一次 —— 源码改了他也不会自动重载。
+    # 所以要比对「磁盘版本」与「最近一次报告里的版本」，不一致就明说"要重启 Codex"。
+    disk_ver = _disk_plugin_version(server)
+    run_ver = (report or {}).get("version") or ""
+    report_mtime = None
+    try:
+        rp = REPORT_DIR / "codex.json"
+        if rp.exists():
+            report_mtime = rp.stat().st_mtime
+    except Exception:
+        pass
+    src_mtime = None
+    try:
+        if server.exists():
+            src_mtime = server.stat().st_mtime
+    except Exception:
+        pass
+    stale = False
+    stale_reason = ""
+    if run_ver and disk_ver and run_ver != disk_ver:
+        stale, stale_reason = True, "运行版本 %s ≠ 磁盘版本 %s" % (run_ver, disk_ver)
+    elif report_mtime and src_mtime and src_mtime > report_mtime + 1:
+        stale, stale_reason = True, "插件源码比上次运行新"
+    if stale:
+        state, note = "需重启 Codex", "跑的是旧版（%s）；重启 Codex 才会加载新版" % stale_reason
+
     return {
         "plugin": "codex",
         "name": PLUGINS["codex"]["name"],
+        "running_version": run_ver,
+        "disk_version": disk_ver,
+        "stale_running": stale,
+        "stale_reason": stale_reason,
         "side": PLUGINS["codex"]["side"],
         "host": PLUGINS["codex"]["host"],
         "installed_into": PLUGINS["codex"]["installed_into"],

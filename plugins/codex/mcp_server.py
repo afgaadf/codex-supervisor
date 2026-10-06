@@ -22,12 +22,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 PLUGIN_NAME = "codex"
-PLUGIN_VERSION = "0.1.1"
+PLUGIN_VERSION = "0.1.2"
 SERVER_NAME = "codex-supervisor"
 DEFAULT_PROTOCOL = "2024-11-05"
 
@@ -380,6 +381,11 @@ def _handle_tools_call(msg_id, params):
         log("工具 %s 执行失败: %r" % (name, exc))
         result = {"ok": False, "error": "工具执行异常：%r" % exc}
         is_err = True
+    # 自报家门：MCP 服务器只在 Codex 启动时加载一次，源码改了不会热重载。
+    # 把版本号放进每次回答里，调用方立刻能看出"我在跟哪个版本说话"。
+    if isinstance(result, dict):
+        result.setdefault("plugin_version", PLUGIN_VERSION)
+        result.setdefault("mcp_pid", os.getpid())
     text = json.dumps(result, ensure_ascii=False, indent=2)
     return _ok(msg_id, {"content": [{"type": "text", "text": text}], "isError": bool(is_err)})
 
@@ -402,7 +408,8 @@ def dispatch(msg):
     if method == "ping":
         return _ok(msg_id, {})
     if method == "tools/list":
-        return _ok(msg_id, {"tools": TOOLS})
+        return _ok(msg_id, {"tools": TOOLS, "plugin_version": PLUGIN_VERSION,
+                            "mcp_pid": os.getpid()})
     if method == "tools/call":
         return _handle_tools_call(msg_id, msg.get("params") or {})
 
@@ -434,6 +441,8 @@ def write_report():
     report = {
         "plugin": PLUGIN_NAME,
         "version": PLUGIN_VERSION,
+        "pid": os.getpid(),
+        "started_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "ts": _now_iso_local(),
         "healthy": modes_total > 0,
         "summary": ("插件就绪，%d 项 Codex 失败模式已加载" % len(codex_auto))

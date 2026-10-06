@@ -57,16 +57,31 @@ class StatusShapeTest(unittest.TestCase):
             self.assertIn(key, st)
 
     def test_healthy_report_is_running(self):
+        disk = PS._disk_plugin_version(PS.CODEX_PLUGIN_SRC / "mcp_server.py")
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / "codex.json").write_text(json.dumps({
-                "plugin": "codex", "version": "0.1.0", "healthy": True,
+                "plugin": "codex", "version": disk, "healthy": True,
                 "summary": "就绪", "ts": datetime.now(timezone.utc).isoformat(),
                 "checks": [], "metrics": {"modes_total": 60}}), encoding="utf-8")
             with mock.patch.object(PS, "REPORT_DIR", Path(d)):
                 st = PS.codex_status()
         self.assertEqual(st["state"], "运行中")
-        self.assertEqual(st["version"], "0.1.0")
+        self.assertEqual(st["version"], disk)
+        self.assertFalse(st["stale_running"])
         self.assertEqual(st["metrics"]["modes_total"], 60)
+
+    def test_stale_running_is_flagged(self):
+        """报告里的版本比磁盘旧 => 明说"需重启 Codex"（MCP 不热重载）。"""
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "codex.json").write_text(json.dumps({
+                "plugin": "codex", "version": "0.0.1", "healthy": True,
+                "summary": "就绪", "ts": datetime.now(timezone.utc).isoformat(),
+                "checks": [], "metrics": {}}), encoding="utf-8")
+            with mock.patch.object(PS, "REPORT_DIR", Path(d)):
+                st = PS.codex_status()
+        self.assertEqual(st["state"], "需重启 Codex")
+        self.assertTrue(st["stale_running"])
+        self.assertIn("重启", st["note"])
 
     def test_unhealthy_report_warns(self):
         with tempfile.TemporaryDirectory() as d:
