@@ -1,4 +1,4 @@
-/* 管家监督 — 极简样式，仅用于状态提示；不引入任何外部资源 */
+/* 管家监督 — 样式；只跟 Obsidian 自己的变量走，不引入任何外部资源 */
 
 .codex-supervisor-status {
   font-variant-numeric: tabular-nums;
@@ -11,3 +11,18 @@
 .codex-supervisor-status.is-error {
   color: var(--text-error, #d14a3c);
 }
+
+/* 状态面板（合并自 supervisor-bridge，浅/深色都跟 Obsidian 变量走） */
+.sb-wrap { padding: 4px 2px; }
+.sb-badge { display:inline-block; padding:2px 8px; border-radius:5px; font-weight:600; margin-right:6px; }
+.sb-ok   { background:#e6f4ea; color:#0e6b30; }
+.sb-watch{ background:#fff4e0; color:#7a4b00; }
+.sb-bad  { background:#fdece0; color:#8a3a00; }
+.sb-block{ background:#fde7e9; color:#a80000; }
+.sb-mut  { color: var(--text-muted); }
+.sb-row  { margin: 6px 0; }
+.sb-kv   { display:flex; gap:8px; }
+.sb-kv > b { min-width:96px; font-weight:500; color:var(--text-muted); }
+.sb-btn  { margin-right:6px; }
+.sb-list { margin:6px 0 0 18px; }
+.sb-list li { margin:2px 0; }

@@ -32,6 +32,12 @@ ATTACH_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf",
 NOTE_EXT = {".md"}
 PINNED = {"agents.md", "claude.md", "maintenance_prompt.md", ".gitignore"}
 HARD_SKIP = {".obsidian", ".git", ".trash", "copilot", ".opencode"}
+
+
+def _skip_segment(part):
+    """目录名该不该跳过：点开头一律跳过（.obsidian/.agents/.claudian…），再加显式清单。"""
+    p = str(part)
+    return p.startswith(".") or p in HARD_SKIP
 MD_LINK = re.compile(r"!?\[\[([^\[\]|#]+)(?:#[^\[\]|]*)?(?:\|[^\[\]]*)?\]\]")
 CERTAINTY = ("一定", "肯定", "必然", "显然", "毫无疑问", "绝对")
 DONE_WORDS = ("完成", "已修复", "已核对", "搞定", "done", "已提交", "已解决")
@@ -306,6 +312,17 @@ def check_turn(ask="", actions="", say=""):
         findings.append(_finding("codex.unbounded_retry", "codex", "medium",
                                  "同一失败无上限重试不换策略",
                                  ["同一命令重复且出现重试口吻：%s" % d[:120] for d in rep2[:5]]))
+    # 声称已核对但没有核对动作
+    if re.search(r"(已核对|已确认|检查过了|确认无误|已验证)", out) and not re.search(
+            r"(read|type |cat |get-content|rg |grep|select-string|diff|比较|比对|打开)", act, re.I):
+        findings.append(_finding("codex.no_evidence_claim", "codex", "high",
+                                 "声称已核对/已确认但没有核对动作",
+                                 ["收尾称已核对，但动作里没有读取或比对"]))
+    # 通配符删除/覆盖
+    if re.search(r"(rm\s+-rf|del\s+\*|remove-item\s+\*|通配删除|清空目录|删除所有)", act, re.I):
+        findings.append(_finding("codex.destructive_glob", "codex", "critical",
+                                 "通配符删除或覆盖",
+                                 ["动作里出现通配符删除/清空，范围不受控"]))
     # 涉及既有资料却不查库
     mentions_lib = re.search(r"(之前(写|做)|我们的|已有|现有|既有|规范|知识库|vault|文档库|README|AGENTS)", both, re.I)
     reads_lib = re.search(r"(rg\s|grep|select-string|findstr|get-childitem|glob|search|检索|查找|读取|getfile|read)", act, re.I)
@@ -439,7 +456,7 @@ def check_vault_content(root=None, max_files=4000, max_items=15):
         if not path.is_file():
             continue
         rel = path.relative_to(root).as_posix()
-        if any(part in HARD_SKIP for part in rel.split("/")[:-1]):
+        if any(_skip_segment(part) for part in rel.split("/")[:-1]):
             continue
         n += 1
         stems[_stem(rel)] = rel
@@ -517,6 +534,100 @@ def check_vault_content(root=None, max_files=4000, max_items=15):
     return findings
 
 
+# ------------------------------------------------------------------ 文本与结构级检测
+BULK_SKIP = ("20_附件/原始资料",)     # 真库里的巨型归档，别整个走一遍
+REQUIRED_PROPS = ("type", "title", "updated")   # 库规要求的标准属性
+
+
+def _walk_notes(root, max_files=4000):
+    """走知识区，产出 (rel, text)。巨型归档与隐藏目录跳过。"""
+    root = Path(root)
+    n = 0
+    for path in root.rglob("*.md"):
+        if n >= max_files:
+            return
+        try:
+            rel = path.relative_to(root).as_posix()
+        except Exception:
+            continue
+        if any(_skip_segment(part) for part in rel.split("/")[:-1]):
+            continue
+        if any(rel.startswith(b + "/") for b in BULK_SKIP):
+            continue
+        n += 1
+        try:
+            yield rel, path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+
+
+def check_vault_text(root=None, max_files=4000, max_items=15):
+    """读正文做：缺库规属性 / 重复标题 / 缺一级标题 / 碎片标签 / 结构问题。"""
+    root = Path(root or VAULT_DIR)
+    if not root.is_dir():
+        return []
+
+    miss_props, dup_heads, no_h1 = [], [], []
+    tag_count = defaultdict(int)
+    for rel, text in _walk_notes(root, max_files=max_files):
+        if not _is_note(rel):
+            continue
+        fm = _parse_frontmatter(text) or {}
+        lack = [k for k in REQUIRED_PROPS if k not in fm]
+        if lack:
+            miss_props.append("%s 缺 %s" % (rel, "/".join(lack)))
+        heads, seen, dup = [], set(), set()
+        for line in text.splitlines():
+            if line.startswith("#"):
+                h = line.lstrip("#").strip()
+                if not h:
+                    continue
+                heads.append(h)
+                if h in seen:
+                    dup.add(h)
+                seen.add(h)
+        if dup:
+            dup_heads.append("%s 重复标题：%s" % (rel, "、".join(sorted(dup))))
+        if not any(l.startswith("# ") for l in text.splitlines()):
+            no_h1.append(rel)
+        for t in re.findall(r"(?:^|\s)#([^\s#[\]()]+)", text):
+            tag_count[t] += 1
+
+    findings = []
+    if miss_props:
+        findings.append(_finding("obsidian.property_missing_required", "obsidian", "high",
+                                 "库规要求的属性缺失", miss_props[:max_items]))
+    if dup_heads:
+        findings.append(_finding("obsidian.heading_duplicate", "obsidian", "low",
+                                 "同一文件出现重复标题", dup_heads[:max_items]))
+    if no_h1:
+        findings.append(_finding("obsidian.note_no_h1", "obsidian", "low",
+                                 "笔记正文缺一级标题", no_h1[:max_items]))
+    singles = sorted(t for t, c in tag_count.items() if c == 1)
+    if len(singles) >= 20:
+        findings.append(_finding("obsidian.tag_singleton", "obsidian", "low",
+                                 "只用过一次的碎片标签",
+                                 ["共 %d 个只用一次的标签，例：%s" % (len(singles), "、".join(singles[:8]))]))
+
+    # ---- 结构级 ----
+    backup_dirs = [d.name for d in root.iterdir()
+                   if d.is_dir() and re.search(r"(backup|备份|快照|bak)", d.name, re.I)]
+    if backup_dirs:
+        findings.append(_finding("obsidian.backup_dir_in_vault", "obsidian", "medium",
+                                 "备份目录放在库内", ["库内备份目录：%s" % "、".join(backup_dirs[:8])]))
+    if not (root / ".gitignore").exists():
+        findings.append(_finding("obsidian.vault_no_gitignore", "obsidian", "medium",
+                                 "缺 .gitignore 把缓存大文件纳入版本控制",
+                                 ["库根没有 .gitignore"]))
+    inbox = root / "00_Inbox"
+    if inbox.is_dir():
+        files = [f for f in inbox.rglob("*") if f.is_file() and _is_note(f.relative_to(root).as_posix())]
+        if len(files) > 20:
+            findings.append(_finding("obsidian.inbox_never_emptied", "obsidian", "high",
+                                     "收件箱只进不出", ["00_Inbox 已积 %d 篇未分流" % len(files)]))
+    return findings
+
+
 # ------------------------------------------------------------------ IO 适配器
 def load_vault_index(path=None):
     p = Path(path) if path else (DATA_DIR / "vault_index.json")
@@ -541,7 +652,9 @@ def scan_vault(vault_dir=None, max_files=4000):
     files = load_vault_index()
     if not files:
         files = _index_from_dir(root, max_files=max_files)
-    return check_vault(files, load_vault_checks()) + check_vault_content(root, max_files=max_files)
+    return (check_vault(files, load_vault_checks())
+            + check_vault_content(root, max_files=max_files)
+            + check_vault_text(root, max_files=max_files))
 
 
 def _index_from_dir(root: Path, max_files=4000):
@@ -554,7 +667,7 @@ def _index_from_dir(root: Path, max_files=4000):
         if not f.is_file():
             continue
         rel = f.relative_to(root).as_posix()
-        if any(part in HARD_SKIP for part in rel.split("/")[:-1]):
+        if any(_skip_segment(part) for part in rel.split("/")[:-1]):
             continue
         try:
             text = f.read_text(encoding="utf-8", errors="replace")

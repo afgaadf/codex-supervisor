@@ -46,6 +46,7 @@
   python brain.py --loop     # 常驻（由 supervisor_app 起线程调用 run_once 即可）
 """
 from __future__ import annotations
+import hashlib
 import json
 import os
 import re
@@ -632,6 +633,7 @@ def think(k, findings, health, force=False):
 
 # ------------------------------------------------------------------ Execute
 MAX_LOG = 2 * 1024 * 1024        # 单个日志超过 2MB 就修剪
+SELF_DEFECT_STATE = LOG_DIR / "self_defect_state.json"   # 记住"已经报过哪一次崩溃"
 
 
 def act(findings, health):
@@ -655,16 +657,37 @@ def act(findings, health):
         ui.export_corrections()
     except Exception:
         pass
-    # ③ 自己崩过 —— 如实写一份缺陷报告，等**人**决定改不改
+    # ③ 自己崩过 —— 如实写缺陷报告，但**只在新崩溃出现时重写**
+    #    旧崩溃留在日志里，不能treat成"新问题"反复刷报告（欠账 A7）
     if any("崩过" in n for n in health.get("notes") or []):
         try:
-            err = K_ERR.read_text(encoding="utf-8", errors="replace")[-4000:]
-            (LOG_DIR / "self_defect.md").write_text(
-                "# 监督者自查：我崩过\n\n生成：%s\n\n"
-                "我不会改自己的代码（改了自己给自己发通行证）。下面是原始报错，"
-                "请人来判断要不要改：\n\n```\n%s\n```\n"
-                % (datetime.now().isoformat(timespec="seconds"), err), encoding="utf-8")
-            did.append("写了一份自我缺陷报告 logs/self_defect.md")
+            err = K_ERR.read_text(encoding="utf-8", errors="replace")
+            blocks = re.findall(r"Traceback \(most recent call last\)[\s\S]*?(?=\nTraceback |\Z)", err)
+            latest = blocks[-1] if blocks else err[-4000:]
+            fingerprint = hashlib.sha256(latest.encode("utf-8", "replace")).hexdigest()[:16]
+            state = {}
+            try:
+                state = json.loads(SELF_DEFECT_STATE.read_text(encoding="utf-8"))
+            except Exception:
+                state = {}
+            times = int(state.get("times") or 0)
+            md = LOG_DIR / "self_defect.md"
+            if state.get("fingerprint") == fingerprint and md.exists():
+                # 同一个崩溃：只累加"又看到几次"，不重写报告
+                state["times"] = times + 1
+                SELF_DEFECT_STATE.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+            else:
+                md.write_text(
+                    "# 监督者自查：我崩过\n\n生成：%s\n指纹：%s\n\n"
+                    "我不会改自己的代码（改了自己给自己发通行证）。下面是**最新一次**报错，"
+                    "请人来判断要不要改：\n\n```\n%s\n```\n"
+                    % (datetime.now().isoformat(timespec="seconds"), fingerprint, latest[-4000:]),
+                    encoding="utf-8")
+                SELF_DEFECT_STATE.write_text(json.dumps(
+                    {"fingerprint": fingerprint, "times": 1,
+                     "since": datetime.now().isoformat(timespec="seconds")},
+                    ensure_ascii=False), encoding="utf-8")
+                did.append("写了一份自我缺陷报告 logs/self_defect.md")
         except Exception:
             pass
     return did

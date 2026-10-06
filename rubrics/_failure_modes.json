@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "updated": "2026-10-07",
   "note": "可机读失败模式库。auto=yes/partial/manual；source 为证据出处或项目经验标注。",
   "modes": [
@@ -984,6 +984,332 @@
       ],
       "detect": "新增笔记未登记进索引或总目录",
       "fix": "更新索引条目",
+      "source": "项目经验（非权威，库规）",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.reasoning_effort_mismatch",
+      "area": "codex",
+      "title": "简单任务超长绕圈、复杂任务草率收尾",
+      "severity": "medium",
+      "triggers": [
+        "绕",
+        "再想想",
+        "简单",
+        "随便",
+        "先这样"
+      ],
+      "detect": "投入的力气与任务难度不匹配：小改大动或大改草草收尾",
+      "fix": "按难度配力气，复杂任务分步并留证据",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "manual"
+    },
+    {
+      "id": "codex.tool_error_pileup",
+      "area": "codex",
+      "title": "工具错误堆积却仍按原路推进",
+      "severity": "high",
+      "triggers": [
+        "error",
+        "failed",
+        "又失败",
+        "还是不行",
+        "报错"
+      ],
+      "detect": "同一环节连续多次报错后仍继续，未停下来换路子",
+      "fix": "错误累计到 2~3 次就停、换假设、如实报告",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.hook_silent_failure",
+      "area": "codex",
+      "title": "闸门/hook 静默失效却以为还有保护",
+      "severity": "critical",
+      "triggers": [
+        "hook",
+        "闸门",
+        "守卫",
+        "保护",
+        "拦截"
+      ],
+      "detect": "假设校验机制在生效，但实际没跑或已失效",
+      "fix": "显式验证闸门确实触发过，别假设它在",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "manual"
+    },
+    {
+      "id": "codex.stale_summary",
+      "area": "codex",
+      "title": "交接或总结与当前实际状态不符",
+      "severity": "high",
+      "triggers": [
+        "交接",
+        "总结",
+        "上次",
+        "之前的状态",
+        "汇总"
+      ],
+      "detect": "交接/总结描述的是旧状态，与当前文件或判定不一致",
+      "fix": "写总结前重新核对当前状态",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.no_evidence_claim",
+      "area": "codex",
+      "title": "声称已核对/已确认但没有核对动作",
+      "severity": "high",
+      "triggers": [
+        "已核对",
+        "已确认",
+        "检查过了",
+        "确认无误"
+      ],
+      "detect": "收尾声称核对过，但本轮没有对应的读取/比对动作",
+      "fix": "要么补核对动作，要么改口为未核对",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.partial_fix",
+      "area": "codex",
+      "title": "只修表象没修根因",
+      "severity": "high",
+      "triggers": [
+        "暂时",
+        "先这样",
+        "绕过",
+        "规避",
+        "兜底"
+      ],
+      "detect": "用绕过或兜底掩盖根因，问题会复发",
+      "fix": "定位并修根因，或如实登记为临时方案",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "manual"
+    },
+    {
+      "id": "codex.regression_ignored",
+      "area": "codex",
+      "title": "改动可能引入回归却未复检相关旧功能",
+      "severity": "high",
+      "triggers": [
+        "重构",
+        "替换",
+        "升级",
+        "移除",
+        "改名"
+      ],
+      "detect": "改动触及旧功能却没有回归验证",
+      "fix": "跑相关旧功能的测试或手验并留证据",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.unrequested_file_creation",
+      "area": "codex",
+      "title": "擅自新建文件或目录污染仓库",
+      "severity": "medium",
+      "triggers": [
+        "新建",
+        "创建文件",
+        "生成",
+        "临时文件",
+        "加到仓库"
+      ],
+      "detect": "用户没要求却新增文件/目录，留下垃圾产物",
+      "fix": "只改必要文件；临时产物放临时目录并清理",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "partial"
+    },
+    {
+      "id": "codex.destructive_glob",
+      "area": "codex",
+      "title": "通配符删除或覆盖（rm -rf * 等）",
+      "severity": "critical",
+      "triggers": [
+        "rm -rf",
+        "del *",
+        "remove-item *",
+        "通配删除",
+        "清空",
+        "删除所有"
+      ],
+      "detect": "用通配符做删除/覆盖，范围不受控",
+      "fix": "先枚举确认命中范围，逐个精确处理",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "yes"
+    },
+    {
+      "id": "codex.silent_env_change",
+      "area": "codex",
+      "title": "悄悄改动用户环境却不告知",
+      "severity": "high",
+      "triggers": [
+        "环境变量",
+        "注册表",
+        "path=",
+        "全局配置",
+        "自启",
+        "计划任务"
+      ],
+      "detect": "改了系统/用户级配置却没有明确告知和备份",
+      "fix": "先说清改什么、怎么回滚，再改",
+      "source": "项目经验（非权威）；OpenAI 官方文档 2026-10-07 直连返回 403",
+      "auto": "manual"
+    },
+    {
+      "id": "obsidian.property_missing_required",
+      "area": "obsidian",
+      "title": "库规要求的属性缺失（type/title/updated）",
+      "severity": "high",
+      "triggers": [
+        "属性",
+        "frontmatter",
+        "type",
+        "title",
+        "updated"
+      ],
+      "detect": "笔记缺库规要求的标准属性",
+      "fix": "补齐标准属性或纳入模板",
+      "source": "T1 https://help.obsidian.md/properties（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.heading_duplicate",
+      "area": "obsidian",
+      "title": "同一文件出现重复标题",
+      "severity": "low",
+      "triggers": [
+        "标题",
+        "heading",
+        "重复标题"
+      ],
+      "detect": "同一文件里标题文字重复，锚点会打架",
+      "fix": "合并或改写重复标题",
+      "source": "T1 https://help.obsidian.md/properties（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.tag_singleton",
+      "area": "obsidian",
+      "title": "只用过一次的碎片标签",
+      "severity": "low",
+      "triggers": [
+        "标签",
+        "tag",
+        "碎片"
+      ],
+      "detect": "大量只出现一次的标签，检索价值低",
+      "fix": "合并到既有标签或删除",
+      "source": "T1 https://help.obsidian.md/tags（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.note_no_h1",
+      "area": "obsidian",
+      "title": "笔记正文缺一级标题",
+      "severity": "low",
+      "triggers": [
+        "标题",
+        "h1",
+        "一级标题"
+      ],
+      "detect": "笔记没有一级标题，阅读与导出体验差",
+      "fix": "补一级标题",
+      "source": "T1 https://help.obsidian.md/properties（2026-10-07 访问）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.backup_dir_in_vault",
+      "area": "obsidian",
+      "title": "备份目录放在库内",
+      "severity": "medium",
+      "triggers": [
+        "备份",
+        "backup",
+        "快照"
+      ],
+      "detect": "备份/快照目录在库内，被索引和同步污染",
+      "fix": "把备份移到库外",
+      "source": "项目经验（非权威，库规）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.vault_no_gitignore",
+      "area": "obsidian",
+      "title": "缺 .gitignore 把缓存大文件纳入版本控制",
+      "severity": "medium",
+      "triggers": [
+        "gitignore",
+        "版本控制",
+        "git"
+      ],
+      "detect": "库根缺 .gitignore 或没排除缓存/大目录",
+      "fix": "补 .gitignore 排除缓存与大目录",
+      "source": "项目经验（非权威，库规）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.inbox_never_emptied",
+      "area": "obsidian",
+      "title": "收件箱只进不出（长期只增不减）",
+      "severity": "high",
+      "triggers": [
+        "收件箱",
+        "inbox",
+        "只进不出",
+        "堆积"
+      ],
+      "detect": "收件箱条目长期只增不减，说明缺分流流程",
+      "fix": "定期清空收件箱并归位",
+      "source": "项目经验（非权威，库规）",
+      "auto": "yes"
+    },
+    {
+      "id": "obsidian.link_alias_stale",
+      "area": "obsidian",
+      "title": "链接显示别名与实际标题不符",
+      "severity": "low",
+      "triggers": [
+        "别名",
+        "alias",
+        "显示名"
+      ],
+      "detect": "链接的显示别名指向的目标已改名，读起来对不上",
+      "fix": "更新别名或改回一致",
+      "source": "T1 https://help.obsidian.md/aliases（2026-10-07 访问）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.dataview_query_broken",
+      "area": "obsidian",
+      "title": "Dataview/Bases 查询引用的字段或文件不存在",
+      "severity": "medium",
+      "triggers": [
+        "dataview",
+        "查询",
+        "query",
+        "视图"
+      ],
+      "detect": "查询里引用的字段或目标不存在，视图永远为空",
+      "fix": "修查询或补字段",
+      "source": "项目经验（非权威，库规）",
+      "auto": "partial"
+    },
+    {
+      "id": "obsidian.note_unlinked_from_moc",
+      "area": "obsidian",
+      "title": "新增笔记没挂进任何 MOC/索引",
+      "severity": "medium",
+      "triggers": [
+        "moc",
+        "索引",
+        "目录",
+        "总目录"
+      ],
+      "detect": "新笔记既没进 MOC 也没进索引，等于写进黑洞",
+      "fix": "挂进对应 MOC 或索引",
       "source": "项目经验（非权威，库规）",
       "auto": "partial"
     }

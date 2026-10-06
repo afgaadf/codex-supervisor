@@ -6,6 +6,32 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-07
+
+### Changed
+- **两个 Obsidian 插件合并成一个**（欠账 A15）：`codex-supervisor` 升到 **1.0.0**，
+  同时具备「桥」（事件流 / 全库索引 / 体检上报 / 状态面板 / 命令队列，只 create/append/move，
+  绝不删除）与「本地体检 + 写报告」两套能力；**一次扫描两个出口**。
+  知识库里旧的 `supervisor-bridge` 已禁用（目录保留、另存备份），只留一个插件。
+- 桥上报口径与管家自己的 `vault_ops._rescan` 对齐：`missing_frontmatter` 用「缺
+  type/title/updated」口径，收件箱默认 7 天，避免两个生产者数字来回跳。
+
+### Added
+- 失败模式库 **60 → 80 项**（Codex 40 · Obsidian 40）。
+- 新增确定性检查器：库规属性缺失、重复标题、缺一级标题、碎片标签、库内备份目录、
+  缺 .gitignore、收件箱只进不出（Obsidian）；声称已核对无动作、通配符删除（Codex）。
+
+### Fixed
+- **A14**：孤立附件判定除路径外再按文件名，同名文件在别路径被引用时不再误判孤立。
+- **A7**：`brain.py` 的缺陷报告改为按崩溃指纹去重——同一个崩溃不再反复重写报告，
+  出现新崩溃才重写（`self_defect_state.json` 记录指纹与次数）。
+- 作用域：`checkers.py` 与 Obsidian 插件的检查一律跳过**点开头目录**
+  （`.agents` / `.claudian` 等不再被当成笔记）。
+- 记账：`C13` 此前被错放进「未清零」区，已归位。
+
+### Tests
+- 新增 `test_checkers_text.py`(15) / `test_brain_self_defect.py`(3) 等；全量 **127 条全绿**。
+
 ## [0.6.1] - 2026-10-07
 
 ### Fixed
