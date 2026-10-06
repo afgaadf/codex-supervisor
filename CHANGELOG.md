@@ -6,6 +6,21 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-07
+
+### Added
+- 依赖锁定：`requirements.txt` 与 `requirements-dev.txt`。
+- Windows CI：自动运行 47 条单元测试；手动工作流可构建未签名 MSIX。
+- 公开工程文档：`PRIVACY.md`、`SECURITY.md`、`THIRD-PARTY-NOTICES.md`。
+- GitHub 公开仓库与 `v0.2.3` 预发布。
+
+### Changed
+- 公开文档、预览和脚本移除本机绝对路径，改用 `%USERPROFILE%` 或通用占位符。
+- 版本升级到 `0.3.0`。
+
+### Security
+- 公开前完成常见 token / API key / 私钥 / 密码模式扫描，无命中。
+- 正式 Release 仍待用户申请 CA 代码签名证书。
 ## [0.2.3] - 2026-10-07
 
 ### Fixed
