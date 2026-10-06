@@ -11,7 +11,7 @@ v2 新增：**本程序自己的监控循环**（不依赖 Codex 内 supervisor 
 信任：**只能由人在界面上授予**（写接口需内存会话令牌），严格按官方标准写入。
 """
 from __future__ import annotations
-import hashlib, http.server, json, re as _re, secrets, socketserver, subprocess, sys, threading, time, webbrowser
+import base64, hashlib, http.server, json, queue, re as _re, secrets, socketserver, subprocess, sys, threading, time, webbrowser
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,6 +48,11 @@ _cache = {"monitor": None, "sup": None, "sup_ts": 0.0, "size0": None, "level": N
           "violation_notified": {}}
 _lock = threading.Lock()
 _judge_lock = threading.Lock()
+# 通知只保留一个常驻 PowerShell 助手；消息排队，不再每条通知起新进程。
+_notify_lock = threading.Lock()
+_notify_proc = None
+_notify_queue = queue.Queue(maxsize=20)
+_notify_worker_started = False
 
 
 def now_iso():
@@ -735,21 +740,106 @@ def conv_action(cid, action, title=""):
     return rec
 
 
+_NOTIFY_PS = r'''
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$n = New-Object System.Windows.Forms.NotifyIcon
+$n.Icon = [System.Drawing.SystemIcons]::Information
+$n.Visible = $true
+while (($line = [Console]::In.ReadLine()) -ne $null) {
+  try {
+    $m = $line | ConvertFrom-Json
+    $n.ShowBalloonTip(12000, [string]$m.title, [string]$m.msg,
+                      [System.Windows.Forms.ToolTipIcon]::Info)
+    Start-Sleep -Seconds 13
+  } catch {}
+}
+$n.Dispose()
+'''
+
+
+def _ensure_notify_proc():
+    """懒启动一个常驻 PowerShell 通知助手；失败返回 None。"""
+    global _notify_proc
+    with _notify_lock:
+        if _notify_proc is not None and _notify_proc.poll() is None:
+            return _notify_proc
+        try:
+            encoded = base64.b64encode(_NOTIFY_PS.encode("utf-16le")).decode("ascii")
+            _notify_proc = subprocess.Popen(
+                ["powershell", "-NoProfile", "-EncodedCommand", encoded],
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=0x08000000)
+        except Exception:
+            _notify_proc = None
+        return _notify_proc
+
+
+def _notify_payload(title, msg):
+    """One ASCII JSON line so PowerShell stdin never depends on console code page."""
+    return (json.dumps({"title": str(title), "msg": str(msg)}, ensure_ascii=True) + "\n").encode("ascii")
+
+
+def _notify_write(title, msg):
+    """Write to the persistent helper, restarting it at most once on failure."""
+    global _notify_proc
+    payload = _notify_payload(title, msg)
+    for _ in range(2):
+        proc = _ensure_notify_proc()
+        if proc is None or proc.stdin is None:
+            return False
+        try:
+            proc.stdin.write(payload)
+            proc.stdin.flush()
+            return True
+        except Exception:
+            with _notify_lock:
+                proc = _notify_proc
+                _notify_proc = None
+            if proc is not None:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+    return False
+
+
+def _notify_worker():
+    while True:
+        title, msg = _notify_queue.get()
+        try:
+            _notify_write(title, msg)
+        finally:
+            _notify_queue.task_done()
+
+
+def _enqueue_notification(title, msg, q=None):
+    """Queue a message; if full, drop the oldest instead of growing without bound."""
+    target = q if q is not None else _notify_queue
+    item = (str(title), str(msg))
+    try:
+        target.put_nowait(item)
+    except queue.Full:
+        try:
+            target.get_nowait()
+            target.task_done()
+        except queue.Empty:
+            pass
+        try:
+            target.put_nowait(item)
+        except queue.Full:
+            pass
+
+
 def notify(title, msg):
     """弹一条 Windows 通知（托盘气泡）。失败就静默。"""
-    def _run():
-        try:
-            ps = ("Add-Type -AssemblyName System.Windows.Forms;"
-                  "$n=New-Object System.Windows.Forms.NotifyIcon;"
-                  "$n.Icon=[System.Drawing.SystemIcons]::Information;$n.Visible=$true;"
-                  "$n.ShowBalloonTip(12000,'" + title.replace("'", "''") + "','" + msg.replace("'", "''") + "',"
-                  "[System.Windows.Forms.ToolTipIcon]::Info);"
-                  "Start-Sleep -Seconds 13;$n.Dispose()")
-            subprocess.Popen(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps],
-                             creationflags=0x08000000)
-        except Exception:
-            pass
-    threading.Thread(target=_run, daemon=True).start()
+    global _notify_worker_started
+    with _notify_lock:
+        if not _notify_worker_started:
+            threading.Thread(target=_notify_worker, daemon=True).start()
+            _notify_worker_started = True
+    _enqueue_notification(title, msg)
 
 
 

@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """Regression tests for duplicate popups and duplicate backend threads."""
 from __future__ import annotations
+import json
 import os
+import queue
 import sys
 import unittest
 from unittest import mock
@@ -32,6 +34,21 @@ class ViolationNotificationDedupeTest(unittest.TestCase):
         self.assertTrue(ui._violation_notify_once(vs, now=1000.0))
         self.assertTrue(ui._violation_notify_once([], now=1001.0))
         self.assertTrue(ui._violation_notify_once(vs, now=1000.0 + ui.VIOLATION_NOTIFY_SEC + 1))
+
+
+class NotifyTransportTest(unittest.TestCase):
+    def test_payload_is_one_ascii_json_line(self):
+        raw = ui._notify_payload("标题", "消息")
+        self.assertTrue(raw.endswith(b"\n"))
+        self.assertEqual(raw.count(b"\n"), 1)
+        self.assertEqual(json.loads(raw.decode("ascii")), {"title": "标题", "msg": "消息"})
+
+    def test_full_queue_drops_oldest(self):
+        q = queue.Queue(maxsize=1)
+        q.put_nowait(("old", "1"))
+        ui._enqueue_notification("new", "2", q=q)
+        self.assertEqual(q.get_nowait(), ("new", "2"))
+        q.task_done()
 
 
 class BackendStartTest(unittest.TestCase):
