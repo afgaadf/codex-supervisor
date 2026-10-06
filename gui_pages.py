@@ -903,3 +903,299 @@ class PagesMixin:
         line(bv, "它自己做了", "；".join(did) if did else "（本轮没有需要动手的）", t, 110)
         need = (last.get("need_human") or [])[:2]
         line(bv, "需要你", "；".join(need) if need else "不用你管", t, 110)
+
+
+    def pg_pc(self, v):
+        page_header(v, "本机环境（辅助）", "只作辅助，别喧宾夺主", self.t)
+        t = self.t
+        try:
+            import pc_guard  # noqa: F401
+            have = True
+        except Exception as e:
+            have = False
+            card(v, "电脑管家不可用", "导入 pc_guard 失败：%s" % e)
+        st = read_json(APP_DIR / "pc_state.json", {}) or {}
+        sm = st.get("summary") or {}
+        lvl = st.get("level") or "WATCH"
+        items = st.get("items") or []
+
+        row = QWidget()
+        h = QHBoxLayout(row)
+        h.setContentsMargins(0, 0, 0, 0)
+        h.setSpacing(8)
+        self.btn_pc_busy = QPushButton("一键体检")
+        self.btn_pc_busy.setObjectName("primary")
+        self.btn_pc_busy.setEnabled(bool(have))
+        self.btn_pc_busy.clicked.connect(lambda: self.pc_bg(self._pc_scan, "体检中…"))
+        h.addWidget(self.btn_pc_busy)
+        b1 = QPushButton("打开任务管理器")
+        b1.clicked.connect(lambda: self.pc_bg(lambda: self._pc_act("open_task_manager", dry_run=False), "打开中…"))
+        h.addWidget(b1)
+        b2 = QPushButton("预览可清理的临时文件")
+        b2.clicked.connect(lambda: self.pc_bg(lambda: self._pc_act("clear_temp", dry_run=True), "扫描临时文件…",
+                                              lambda r: self.pc_note("预览：" + json.dumps(r, ensure_ascii=False)[:260])))
+        h.addWidget(b2)
+        b3 = QPushButton("清理 7 天前的临时文件")
+        b3.clicked.connect(self.pc_clear_temp)
+        h.addWidget(b3)
+        h.addStretch(1)
+        v.addWidget(row)
+
+        k = QHBoxLayout()
+        k.setSpacing(12)
+        kpi(k, "管家评分", "%s %s" % (LEVELS.get(lvl, ("·", "—"))[0], "%s / 100" % (st.get("score", "—"))),
+            "体检时间：%s" % (str(st.get("ts") or "—")[11:19] or "还没体检"), t,
+            LEVELS.get(lvl, ("", "", "w"))[2])
+        kpi(k, "CPU", "%s%%" % (sm.get("cpu_pct", "—")), "瞬时占用（CIM LoadPercentage）", t)
+        kpi(k, "内存", "%s%%" % (sm.get("mem_pct", "—")),
+            "已用 %s GB / 共 %s GB" % (sm.get("mem_used_gb", "—"), sm.get("mem_total_gb", "—")), t,
+            "w" if float(sm.get("mem_pct") or 0) >= 85 else None)
+        disks = sm.get("disks") or []
+        d0 = next((x for x in disks if x.get("id") == "C:"), disks[0] if disks else {})
+        pct = 0.0
+        try:
+            pct = float(d0.get("free_gb") or 0) / max(0.1, float(d0.get("total_gb") or 1)) * 100
+        except Exception:
+            pass
+        kpi(k, "C 盘剩余", "%s GB" % (d0.get("free_gb", "—")),
+            "占 %.1f%%（低于 10%% 就该清）" % pct, t, "b" if pct < 10 else ("w" if pct < 20 else None))
+        wrap = QWidget()
+        wrap.setLayout(k)
+        v.addWidget(wrap)
+
+        try:
+            import pc_guard
+            pts = pc_guard.history(60)
+            als = pc_guard.alerts(12)
+            bks = pc_guard.startup_backups()
+        except Exception:
+            pts, als, bks = [], [], []
+        f, bv = card(v, "走势（最近 %d 个采样点 · 每 5 分钟一个）" % len(pts),
+                     "每 5 分钟一个点，越线才记告警")
+        sp = Sparkline(pts, t)
+        bv.addWidget(sp)
+
+        f, bv = card(v, "告警历史（%d）" % len(als), "只在刚越过阈值时记一条，不会刷屏。")
+        if not als:
+            empty(bv, "还没有越过阈值的记录。")
+        for a in reversed(als[-8:]):
+            row = QWidget()
+            hh = QHBoxLayout(row)
+            hh.setContentsMargins(0, 0, 0, 0)
+            hh.addWidget(chip("BLOCKED" if a.get("sev") == "要紧" else "WATCH", t))
+            hh.addWidget(QLabel(str(a.get("ts") or "")[11:19]))
+            lab = QLabel(str(a.get("detail") or ""))
+            lab.setWordWrap(True)
+            hh.addWidget(lab, 1)
+            bv.addWidget(row)
+
+        f, bv = card(v, "体检结果（%d 项）" % len(items),
+                     "阈值：内存88 · 盘10 · 自启15；动作全审计")
+        if not items:
+            empty(bv, "没问题（先点一键体检）")
+        for it in items[:8]:
+            sev = {"要紧": "BLOCKED", "注意": "WATCH", "还好": "NORMAL"}.get(it.get("sev"), "WATCH")
+            r = QWidget()
+            hh = QHBoxLayout(r)
+            hh.setContentsMargins(0, 0, 0, 0)
+            hh.addWidget(chip(sev, t))
+            box = QVBoxLayout()
+            box.setSpacing(2)
+            a = QLabel(str(it.get("title") or ""))
+            a.setWordWrap(True)
+            box.addWidget(a)
+            b = QLabel("证据：%s" % elide(it.get("evidence"), 90))
+            b.setObjectName("small")
+            b.setWordWrap(True)
+            b.setMinimumWidth(0)
+            b.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+            box.addWidget(b)
+            c = QLabel("怎么办：%s" % elide(it.get("advice"), 90))
+            c.setObjectName("small")
+            c.setWordWrap(True)
+            c.setMinimumWidth(0)
+            c.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+            box.addWidget(c)
+            hh.addLayout(box, 1)
+            bv.addWidget(r)
+
+        self.lbl_pc_note = QLabel("")
+        self.lbl_pc_note.setObjectName("muted")
+        self.lbl_pc_note.setWordWrap(True)
+        f, bv = card(v, "动作与结果")
+        bv.addWidget(self.lbl_pc_note)
+
+        # ---- 垃圾清理（扫描要 8 秒左右，放后台）
+        js = getattr(self, "pc_junk", None)
+        f, bv = card(v, "垃圾清理（只清白名单：临时文件 / 浏览器缓存）",
+                     "回收站不可用（本机实测）"
+                     "下载目录只列不动")
+        row = QWidget()
+        hh = QHBoxLayout(row)
+        hh.setContentsMargins(0, 0, 0, 0)
+        sb = QPushButton("扫描垃圾")
+        sb.setObjectName("primary")
+        sb.clicked.connect(lambda: self.pc_bg(self._pc_junk_scan, "扫描中…",
+                                              lambda r: setattr(self, "pc_junk", r)))
+        hh.addWidget(sb)
+        hh.addWidget(QLabel("可清理合计：%.1f MB" % (((js or {}).get("cleanable_bytes") or 0) / 1024 ** 2)))
+        hh.addStretch(1)
+        bv.addWidget(row)
+        if not js:
+            empty(bv, "点「扫描垃圾」看看能清多少。")
+        else:
+            t2 = QTableWidget(len(js.get("categories") or []), 4)
+            t2.setHorizontalHeaderLabels(["类别", "大小", "文件", "操作"])
+            t2.verticalHeader().setVisible(False)
+            t2.setEditTriggers(QAbstractItemView.NoEditTriggers)
+            t2.setMinimumHeight(min(300, 40 + 26 * max(3, len(js.get("categories") or []))))
+            h4 = t2.horizontalHeader()
+            h4.setSectionResizeMode(0, QHeaderView.Stretch)
+            h4.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+            for i, c in enumerate(js.get("categories") or []):
+                t2.setItem(i, 0, QTableWidgetItem(str(c.get("name"))))
+                t2.setItem(i, 1, QTableWidgetItem("%.1f MB" % ((c.get("bytes") or 0) / 1024 ** 2)))
+                t2.setItem(i, 2, QTableWidgetItem(str(c.get("files") if c.get("files") is not None else "—")))
+                w2 = QWidget()
+                hh2 = QHBoxLayout(w2)
+                hh2.setContentsMargins(0, 0, 0, 0)
+                if c.get("cleanable"):
+                    for lab, dry in (("预览", True), ("清理", False)):
+                        b = QPushButton(lab)
+                        if not dry:
+                            b.setObjectName("primary")
+                        b.clicked.connect(lambda _=False, k=c.get("key"), d=dry, nm2=c.get("name"):
+                                          self.pc_junk_clean(k, nm2, d))
+                        hh2.addWidget(b)
+                else:
+                    lab = QLabel("只显示")
+                    lab.setObjectName("small")
+                    hh2.addWidget(lab)
+                t2.setCellWidget(i, 3, w2)
+            bv.addWidget(t2)
+            for c in (js.get("categories") or []):
+                if c.get("sample"):
+                    line(bv, str(c.get("name"))[:10], "；".join(
+                        "%s（%.0f MB）" % (str(s2.get("path") or "")[-36:], s2.get("mb") or 0)
+                        for s2 in c["sample"][:4]), t, 120)
+
+        # ---- 服务（用最近一次体检里的"自启但没运行"列表，不额外采集）
+        svc = st.get("services_stopped") or []
+        f, bv = card(v, "自启但没在跑的服务（%d）" % len(svc),
+                     "需要管理员")
+        t3 = QTableWidget(len(svc), 2)
+        t3.setHorizontalHeaderLabels(["服务", "显示名"])
+        t3.verticalHeader().setVisible(False)
+        t3.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        t3.setMinimumHeight(min(320, 40 + 26 * max(3, len(svc))))
+        t3.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        for i, x in enumerate(svc):
+            t3.setItem(i, 0, QTableWidgetItem(str(x.get("Name") or "")))
+            t3.setItem(i, 1, QTableWidgetItem(elide(x.get("DisplayName"), 60)))
+        bv.addWidget(t3)
+
+        row = QWidget()
+        hh = QHBoxLayout(row)
+        hh.setContentsMargins(0, 0, 0, 0)
+        tb = QPushButton("读一次温度（本机可能不支持）")
+        tb.clicked.connect(lambda: self.pc_bg(self._pc_temps, "读温度…",
+                                              lambda r: self.pc_note("温度：" + json.dumps(r, ensure_ascii=False)[:240])))
+        hh.addWidget(tb)
+        hh.addStretch(1)
+        bv.addWidget(row)
+
+        tbl = QTableWidget(len(st.get("top") or []), 4)
+        tbl.setHorizontalHeaderLabels(["PID", "进程", "内存", "操作"])
+        tbl.verticalHeader().setVisible(False)
+        tbl.setSelectionBehavior(QAbstractItemView.SelectRows)
+        tbl.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        tbl.setAlternatingRowColors(True)
+        tbl.setSortingEnabled(True)
+        tbl.setMinimumHeight(min(360, 40 + 26 * max(3, len(st.get("top") or []))))
+        hh2 = tbl.horizontalHeader()
+        hh2.setSectionResizeMode(1, QHeaderView.Stretch)
+        hh2.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        for i, pr in enumerate(st.get("top") or []):
+            pid = str(pr.get("Id") or "")
+            tbl.setItem(i, 0, QTableWidgetItem(pid))
+            tbl.setItem(i, 1, QTableWidgetItem(str(pr.get("ProcessName") or "")))
+            try:
+                mem = float(pr.get("WorkingSet64") or 0) / 1024 ** 3
+            except Exception:
+                mem = 0.0
+            tbl.setItem(i, 2, QTableWidgetItem("%.2f GB" % mem))
+            btn = QPushButton("结束")
+            btn.clicked.connect(lambda _=False, p_=pid, n_=str(pr.get("ProcessName") or ""): self.pc_kill(p_, n_))
+            tbl.setCellWidget(i, 3, btn)
+        f, bv = card(v, "内存占用 Top %d" % len(st.get("top") or []),
+                     "只能结束这里列出的进程")
+        bv.addWidget(tbl)
+
+        su = st.get("startup") or []
+        tbl2 = QTableWidget(len(su), 4)
+        tbl2.setHorizontalHeaderLabels(["启动项", "位置", "命令", "操作"])
+        tbl2.verticalHeader().setVisible(False)
+        tbl2.setSelectionBehavior(QAbstractItemView.SelectRows)
+        tbl2.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        tbl2.setAlternatingRowColors(True)
+        tbl2.setMinimumHeight(min(340, 40 + 26 * max(3, len(su))))
+        hh3 = tbl2.horizontalHeader()
+        hh3.setSectionResizeMode(2, QHeaderView.Stretch)
+        hh3.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        for i, x in enumerate(su):
+            nm = str(x.get("name") or "")
+            wh = str(x.get("where") or "")
+            tbl2.setItem(i, 0, QTableWidgetItem(nm))
+            tbl2.setItem(i, 1, QTableWidgetItem(elide(wh, 40)))
+            tbl2.setItem(i, 2, QTableWidgetItem(elide(x.get("command"), 80)))
+            reg = wh.startswith("HK")
+            is_folder = str(x.get("source") or "") == "startup_folder"
+            btn = QPushButton("禁用" if (reg or is_folder) else "—")
+            btn.setEnabled(reg or is_folder)
+            if reg:
+                btn.clicked.connect(lambda _=False, n=nm, w=wh, c=str(x.get("command") or ""): self.pc_startup(n, w, c))
+            elif is_folder:
+                btn.clicked.connect(lambda _=False, p=str(x.get("command") or ""), n=nm: self.pc_folder_disable(p, n))
+            tbl2.setCellWidget(i, 3, btn)
+        f, bv = card(v, "开机自启（%d）" % len(su),
+                     "注册表按 Microsoft Learn；文件夹项本机实测。"
+                     "禁用前先存原值；HKLM 要管理员。")
+        bv.addWidget(tbl2)
+
+        try:
+            import pc_guard
+            fbk = pc_guard.startup_folder_backups()
+        except Exception:
+            fbk = []
+        f, bv = card(v, "启动文件夹项备份 %d 个" % len(fbk),
+                     "移动备份，可移回")
+        if not fbk:
+            empty(bv, "启动文件夹里没有项被移走。")
+        for b in fbk:
+            row = QWidget()
+            hh = QHBoxLayout(row)
+            hh.setContentsMargins(0, 0, 0, 0)
+            hh.addWidget(QLabel("%s（%.1f KB）" % (b.get("name"), b.get("mb") or 0)))
+            hh.addStretch(1)
+            rb = QPushButton("移回启动文件夹")
+            rb.clicked.connect(lambda _=False, n=str(b.get("name") or ""): self.pc_folder_restore(n))
+            hh.addWidget(rb)
+            bv.addWidget(row)
+
+        f, bv = card(v, "已禁用（可一键恢复）· 备份 %d 条" % len(bks),
+                     "禁用前的原值，一键恢复")
+        if not bks:
+            empty(bv, "还没禁用过任何启动项。")
+        for b in reversed(bks[-6:]):
+            row = QWidget()
+            hh = QHBoxLayout(row)
+            hh.setContentsMargins(0, 0, 0, 0)
+            lab = QLabel("%s　%s" % (b.get("name"), elide(b.get("command"), 60)))
+            lab.setObjectName("small")
+            lab.setWordWrap(True)
+            hh.addWidget(lab, 1)
+            rb = QPushButton("恢复")
+            rb.clicked.connect(lambda _=False, n=str(b.get("name") or ""), w=str(b.get("where") or ""):
+                               self.pc_startup_restore(n, w))
+            hh.addWidget(rb)
+            bv.addWidget(row)
