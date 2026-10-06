@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from paths import DATA_DIR
+from jsonl_tail import tail_jsonl as _tail_jsonl
 
 from gui_data import APP_DIR
 
@@ -58,20 +59,8 @@ def read_json(path, default):
 
 
 def tail_jsonl(path, n):
-    try:
-        lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
-    except Exception:
-        return []
-    out = []
-    for line in lines[-n:]:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            out.append(json.loads(line))
-        except Exception:
-            pass
-    return out
+    """Delegate to the incremental tail reader used by the backend too."""
+    return _tail_jsonl(path, n)
 
 
 def safe(fn, default):

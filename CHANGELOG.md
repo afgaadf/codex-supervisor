@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-07
+
+### Changed
+- JSONL 尾部读取改为按块增量读取，不再把大日志全量载入内存。
+- 判断循环、告警/审计页和历史记录页统一使用增量读取。
+- `latest_turn` 优先读取 transcript 末尾 4 MiB；尾部不足时保留全量回退。
+
+### Tests
+- 新增 `tests/test_jsonl_tail.py`；共 51 条全绿。
+
 ## [0.3.0] - 2026-10-07
 
 ### Added

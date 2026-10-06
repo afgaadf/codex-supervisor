@@ -16,6 +16,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from paths import APP_DIR, CODEX_HOME, DATA_DIR, RESOURCE_DIR, is_packaged
+from jsonl_tail import tail_jsonl as _tail_jsonl, tail_text as _tail_text
 
 CODEX_CFG = str(CODEX_HOME / "config.toml")
 
@@ -60,18 +61,8 @@ def now_iso():
 
 
 def _jsonl(path, tail=200000):
-    if not path.exists():
-        return []
-    out = []
-    with path.open("r", encoding="utf-8", errors="replace") as f:
-        for ln in f:
-            ln = ln.strip()
-            if ln:
-                try:
-                    out.append(json.loads(ln))
-                except Exception:
-                    pass
-    return out[-tail:]
+    """Read only the tail of a JSONL file; monitoring runs this frequently."""
+    return _tail_jsonl(path, tail)
 
 
 def write_plugin_token():
@@ -435,7 +426,9 @@ def latest_turn():
     if not tp:
         return None
     try:
-        lines = tp.read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = _tail_text(tp, 4 * 1024 * 1024).splitlines()
+        if len(lines) < 4 and tp.stat().st_size > 4 * 1024 * 1024:
+            lines = tp.read_text(encoding="utf-8", errors="replace").splitlines()
     except Exception:
         return None
     turns, cur = [], None
