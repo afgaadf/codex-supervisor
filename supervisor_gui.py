@@ -241,6 +241,35 @@ def worse(a, b):
     return a if RANK.get(a, -1) >= RANK.get(b, -1) else b
 
 
+def _alive(w):
+    """控件是否仍有效（没被 refresh()→rebuild() 的 deleteLater() 销毁）。
+
+    依据（T1）：Qt 官方《Threads and QObjects》——GUI 类只能在主线程用；
+    控件销毁后再访问会抛
+    RuntimeError: libshiboken: Internal C++ object (...) already deleted.
+    https://doc.qt.io/qt-6/threads-qobject.html （访问 2026-10-07）
+    """
+    if w is None:
+        return False
+    try:
+        import shiboken6
+        return bool(shiboken6.isValid(w))
+    except Exception:
+        return True          # 取不到 shiboken6 时保守放行，交给调用处
+
+
+def _set_text(w, text):
+    """安全设置文字：控件已销毁就跳过；不吞掉别的异常。"""
+    if _alive(w):
+        w.setText(text)
+
+
+def _set_enabled(w, on):
+    """安全启用/禁用控件：控件已销毁就跳过。"""
+    if _alive(w):
+        w.setEnabled(on)
+
+
 def load_settings():
     d = read_json(SETTINGS, {})
     return d if isinstance(d, dict) else {}
@@ -2125,34 +2154,28 @@ class Main(QMainWindow):
                 except Exception as e:
                     self.done.emit({"ok": False, "error": "%s: %s" % (type(e).__name__, e)})
 
-        try:
-            self.btn_pc_busy.setText(label)
-            self.btn_pc_busy.setEnabled(False)
-        except Exception:
-            pass  # 从别的页调用时没有这个按钮，忽略
-        self.job = _J()
-        self.job.done.connect(lambda r: self.pc_done(r, after))
-        self.job.start()
+        _set_text(getattr(self, "btn_pc_busy", None), label)
+        _set_enabled(getattr(self, "btn_pc_busy", None), False)
+        job = _J()
+        jobs = getattr(self, "_bg_jobs", None)
+        if jobs is None:
+            jobs = self._bg_jobs = []
+        jobs.append(job)                 # 持引用：线程还在跑时不能被回收
+        job.done.connect(lambda r: self.pc_done(r, after))
+        job.finished.connect(job.deleteLater)
+        job.finished.connect(lambda: jobs.remove(job) if job in jobs else None)
+        job.start()
 
     def pc_done(self, r, after=None):
-        try:
-            self.btn_pc_busy.setEnabled(True)
-            self.btn_pc_busy.setText("一键体检")
-        except Exception:
-            pass
+        _set_enabled(getattr(self, "btn_pc_busy", None), True)
+        _set_text(getattr(self, "btn_pc_busy", None), "一键体检")
         if after:
             after(r)
         self.refresh()
 
     def pc_note(self, msg):
-        try:
-            self.lbl_pc_note.setText(str(msg)[:300])
-        except Exception:
-            pass
-        try:
-            self.lbl_need.setText(str(msg)[:150])
-        except Exception:
-            pass
+        _set_text(getattr(self, "lbl_pc_note", None), str(msg)[:300])
+        _set_text(getattr(self, "lbl_need", None), str(msg)[:150])
 
     def pc_kill(self, pid, name):
         txt, ok = QInputDialog.getText(self, "结束进程（要二次确认）",
@@ -2631,13 +2654,20 @@ class Main(QMainWindow):
                 except Exception as e:
                     self.done.emit({"ok": False, "error": str(e)})
 
-        self.worker = _R(q)
-        self.worker.done.connect(self.on_research)
-        self.worker.start()
+        worker = _R(q)
+        self.worker = worker
+        workers = getattr(self, "_research_jobs", None)
+        if workers is None:
+            workers = self._research_jobs = []
+        workers.append(worker)           # 持引用：线程还在跑时不能被回收
+        worker.done.connect(self.on_research)
+        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(lambda: workers.remove(worker) if worker in workers else None)
+        worker.start()
 
     def on_research(self, r):
-        self.btn_go.setEnabled(True)
-        self.btn_go.setText("执行")
+        _set_enabled(getattr(self, "btn_go", None), True)
+        _set_text(getattr(self, "btn_go", None), "执行")
         title = self.notes[0].get("title") if self.notes else "联网查证"
         if not r or not r.get("ok"):
             self.notes.insert(0, dict(title="没查成", body=str((r or {}).get("error") or "未知原因")))
