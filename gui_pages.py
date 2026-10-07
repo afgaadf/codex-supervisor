@@ -946,7 +946,16 @@ class PagesMixin:
         b2 = QPushButton("详情")
         b2.clicked.connect(self.vault_details)
         h.addWidget(b2)
+        b3 = QPushButton("看修复计划")
+        b3.clicked.connect(self.fix_plan_show)
+        h.addWidget(b3)
+        b4 = QPushButton("执行安全修复")
+        b4.clicked.connect(self.fix_plan_execute)
+        h.addWidget(b4)
         bv.addWidget(row)
+        line(bv, "修复边界",
+             "只补 frontmatter 和 .gitignore；断链只写候选报告；不改链接、不删正文、不自动提交 Git。",
+             t, 160)
 
         line(bv, "上次自动", (str(last.get("ts") or "")[11:19] or "还没跑过") +
              ("　健康分 %s" % last.get("health") if last.get("health") is not None else ""), t, 80)

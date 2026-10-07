@@ -5,7 +5,7 @@
 ## 下载
 
 - GitHub 仓库：https://github.com/afgaadf/codex-supervisor
-- 最新预发布：https://github.com/afgaadf/codex-supervisor/releases/tag/v0.10.0
+- 最新预发布：https://github.com/afgaadf/codex-supervisor/releases/tag/v0.11.0
 - **注意**：当前 MSIX 是自签名测试包，不是正式 CA 代码签名包；普通用户直接安装可能被 Windows 拒绝。
 
 **独立于 Codex 的监管程序。信任只能由人经此界面授予。**
@@ -145,6 +145,14 @@ psutil 官方文档（本机未安装，仅作能力对照）。详见 `事实�
 全库索引 / 实时事件流 / 规矩体检（断链·缺 frontmatter·收件箱堆积·未提交 git）/ 状态面板，
 并执行监督者下发的**受控写命令**（只有 create_note / append_note / move_note，**不删除**）。
 监管者判据见 `rubrics/obsidian-vault.md`；依据见 `事实核查表.md` #9–11。
+
+### 修复计划（2026-10-07 起）
+
+Obsidian 库页新增 **「看修复计划」/「执行安全修复」**：先看按严重度排好的修复计划，
+再确认执行。安全执行器只做三类动作——补 frontmatter、补 `.gitignore`、写断链/改名候选报告；
+每个被改写的旧文件先备份到库外，正文只前置元数据，不改链接、不删正文、不自动提交 Git。
+其余项目仍明确标为「需人工」。
+
 ### 电脑管家 v2（2026-10-07）—— 采样曲线 / 告警历史 / 启动项禁用
 
 | 新增 | 说明 |

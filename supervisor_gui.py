@@ -734,6 +734,75 @@ class Main(PagesMixin, QMainWindow):
                                                           % ("；".join(r.get("did") or []) or "无需动手",
                                                              "；".join(r.get("need_human") or []) or "不用你管")))
 
+    def fix_plan_show(self):
+        """只读：读检查结果，打开修复计划窗口。"""
+        def _run():
+            import fix_runner as FR
+            return FR.build_plan()
+        self.pc_bg(_run, "读修复计划…", self._fix_plan_dialog)
+
+    def _fix_plan_dialog(self, data):
+        import fix_runner as FR
+        from PySide6.QtWidgets import QDialog, QTextBrowser
+        if not isinstance(data, dict):
+            data = {"error": str(data)}
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Obsidian 库 · 修复计划")
+        dlg.resize(920, 660)
+        lay = QVBoxLayout(dlg)
+        tb = QTextBrowser()
+        tb.setPlainText(FR.render_plan(data))
+        lay.addWidget(tb)
+        b = QPushButton("关闭")
+        b.clicked.connect(dlg.accept)
+        lay.addWidget(b)
+        dlg.exec()
+
+    def fix_plan_execute(self):
+        """先看计划并确认；真正的执行会再扫一遍，按当时事实动手。"""
+        def _run():
+            import fix_runner as FR
+            return FR.build_plan()
+        self.pc_bg(_run, "准备安全修复…", self._fix_plan_confirm)
+
+    def _fix_plan_confirm(self, data):
+        import fix_runner as FR
+        from PySide6.QtWidgets import QMessageBox
+        s = (data or {}).get("summary") or {}
+        if not s.get("auto_classes"):
+            self.pc_note("没有可自动执行的项目；计划里标出的都需要人工。")
+            return
+        text = (
+            "这次只执行安全项：\n"
+            "· 补 frontmatter：%s 篇（逐篇先备份）\n"
+            "· 补 .gitignore：%s 处\n"
+            "· 写断链/改名候选报告：%s 类\n\n"
+            "不会改链接、不会删正文、不会自动提交 Git。\n"
+            "执行前会重新扫描，按当下结果动手。继续吗？"
+            % (s.get("frontmatter_files", 0), s.get("gitignore", 0), s.get("link_report_classes", 0))
+        )
+        ans = QMessageBox.question(
+            self, "执行安全修复", text,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        if ans != QMessageBox.StandardButton.Yes:
+            self.pc_note("已取消，知识库未动。")
+            return
+        self.pc_bg(lambda: FR.apply(), "执行安全修复中…", self._fix_plan_done)
+
+    def _fix_plan_done(self, r):
+        if not isinstance(r, dict):
+            r = {"ok": False, "error": str(r)}
+        if not r.get("ok"):
+            detail = r.get("error") or "；".join(str(x) for x in (r.get("errors") or [])) or "未知错误"
+            self.pc_note("安全修复未完成：%s" % str(detail)[:240])
+            return
+        c = r.get("changed") or {}
+        self.pc_note(
+            "安全修复完成：frontmatter %s 篇、.gitignore %s 处、候选报告 %s 份；备份 %s 个文件。" % (
+                c.get("frontmatter", 0), c.get("gitignore", 0), c.get("link_report", 0),
+                len(r.get("backed_up") or [])))
+
     def vault_ops_rollback(self):
         def _run():
             VO = fresh("vault_ops")

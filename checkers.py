@@ -797,6 +797,7 @@ def fix_plan(findings, limit=40):
             "auto": bool(h.get("auto")),
             "how": h.get("how"),
             "samples": list(f.get("items") or [])[:3],
+            "targets": list(f.get("items") or []),
         })
     order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     plan.sort(key=lambda x: (order.get(x.get("severity"), 9), not x.get("auto"), x.get("id") or ""))
