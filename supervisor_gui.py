@@ -62,6 +62,7 @@ TOKENS = {
         win="#f4f6f8", card="#ffffff", line="#d8dee4", text="#1b1b1b",
         muted="#5c5c5c", faint="#767676", accent="#0b5394", accent2="#0a4780",
         sel="#e8f0fe", hover="#f0f3f6", okf="#0e6b30", okb="#e6f4ea",
+        mf="#0b4a6f", mb="#e3f1fb",     # 维护中（蓝灰，和正常/警告/危险都区分开）
         wf="#7a4b00", wb="#fff4e0", df="#8a3a00", db="#fdece0",
         bf="#a80000", bb="#fde7e9",
     ),
@@ -69,6 +70,7 @@ TOKENS = {
         win="#1c1c1c", card="#282828", line="#3d3d3d", text="#f2f2f2",
         muted="#d6d6d6", faint="#a8a8a8", accent="#7cb0ff", accent2="#9cc4ff",
         sel="#2f3b4d", hover="#333333", okf="#9fe3b4", okb="#16351f",
+        mf="#8ecbff", mb="#0f2b3d",     # 维护中
         wf="#ffd08a", wb="#3a2a10", df="#ffb183", db="#3d2415",
         bf="#ff9f9f", bb="#401a1c",
     ),
@@ -442,6 +444,14 @@ class Main(PagesMixin, QMainWindow):
         d["mon_level"] = str(mon.get("independent_level") or "")
         d["sup_level"] = str(sup.get("level") or "")
         d["level"] = worse(d["mon_level"] or "NORMAL", d["sup_level"] or "NORMAL")
+        # 维护模式：只放行、不改判。所以「显示等级」换成维护中，
+        # 但底下的 d["underlying_level"] 必须原样保留 —— 不能借维护把底色洗白。
+        maint = sup.get("maintenance") or {}
+        d["maintenance"] = maint
+        d["maintenance_active"] = bool(sup.get("maintenance_active"))
+        d["underlying_level"] = d["level"]
+        if d["maintenance_active"]:
+            d["level"] = "MAINTENANCE"
         d["need_hooks"] = [x for x in d["hooks"] if x.get("status") != "trusted"]
         d["pending"] = (len(d["need_hooks"]) + len(d["corr"]) + len(d["changes"]) + len(d["requests"]))
         return d
@@ -461,7 +471,15 @@ class Main(PagesMixin, QMainWindow):
         win = d.get("win") or {}
         pend = d.get("pending", 0)
         extra = ("　·　待你处理 %d 条" % pend) if pend else "　·　没有等你处理的事"
-        self.lbl_need.setText(elide("%s%s　·　正在盯：%s" % (need, extra, win.get("title") or "—"), 120))
+        if d.get("maintenance_active"):
+            from gui_widgets import underlying_level, maintenance_line
+            need = maintenance_line(d)
+            extra = "　·　底层判定仍是 %s（分数 %s）" % (
+                underlying_level(d), (d.get("sup") or {}).get("score", "—"))
+            self.setWindowTitle("管家 v%s　【维护中】" % __version__)
+        else:
+            self.setWindowTitle("管家 v%s" % __version__)
+        self.lbl_need.setText(elide("%s%s　·　正在盯：%s" % (need, extra, win.get("title") or "—"), 160))
         counts = {"trust": len(d.get("need_hooks") or []), "corr": len(d.get("corr") or []),
                   "changes": len(d.get("changes") or [])}
         for k, name in self.PAGES:

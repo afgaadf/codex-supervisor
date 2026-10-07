@@ -22,7 +22,47 @@ LEVELS = {
     "WATCH":    ("◆", "观察",     "w",  "盯着就行，先别开新任务"),
     "DEGRADED": ("▲", "降智风险", "d",  "先收尾；需要人在 Codex 之外 resume 才算解锁"),
     "BLOCKED":  ("■", "已阻断",   "b",  "已被拦下；需要人在 Codex 之外 resume 才算解锁"),
+    # 维护模式不是等级，是"临时放行"：底层判定照旧保留，到期自动恢复。
+    "MAINTENANCE": ("◆", "维护中", "m", "外部限时放行：只放行、不改判；到期自动恢复原等级"),
 }
+
+
+def effective_level(sup):
+    """界面该显示哪个状态：维护模式开着就显示「维护中」，否则显示底层等级。"""
+    sup = sup or {}
+    if sup.get("maintenance_active"):
+        return "MAINTENANCE"
+    return sup.get("level") or "WATCH"
+
+
+def underlying_level(sup):
+    """维护模式下，被暂时搁置的底层判定（要一起显示，不能藏）。"""
+    sup = sup or {}
+    if sup.get("underlying_level"):
+        return sup.get("underlying_level")
+    if sup.get("sup") is not None:
+        return (sup.get("sup") or {}).get("level") or "?"
+    return sup.get("level") or "?"
+
+
+def maintenance_line(d):
+    """维护中那一行：谁开的、为什么、到几点、还剩多久。给人看的完整交代。"""
+    m = (d or {}).get("maintenance") or {}
+    by = m.get("by") or "未署名"
+    reason = m.get("reason") or "未说明"
+    until = str(m.get("until") or "")
+    when = "未知"
+    if until:
+        try:
+            from datetime import datetime
+            when = datetime.fromisoformat(until.replace("Z", "+00:00")).astimezone().strftime("%H:%M")
+        except Exception:
+            when = until[:16]
+    remain = m.get("remaining_min")
+    remain_txt = ""
+    if isinstance(remain, (int, float)):
+        remain_txt = "，还剩约 %d 分钟" % round(remain)
+    return "维护中：%s 开的（原因：%s），到 %s%s" % (by, reason, when, remain_txt)
 
 
 def chip(level, t, big=False):

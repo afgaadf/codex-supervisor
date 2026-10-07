@@ -491,6 +491,20 @@ class PagesMixin:
                                                     hhmmss(hist[-1].get("ts")))
             except Exception:
                 delta = ""
+        # ---- 维护模式横幅：开着就必须一眼看见，且必须交代底层判定 ----
+        if d.get("maintenance_active"):
+            from gui_widgets import maintenance_line, underlying_level
+            f, bv = card(v, "◆ 维护模式：临时放行中",
+                         "开发/维护用的外部限时开关。**只放行、不改判**："
+                         "底层分数与等级原样保留，到期自动恢复原等级。")
+            line(bv, "谁开的", maintenance_line(d), t, 170)
+            line(bv, "底层判定", "%s（分数 %s）—— 没有被改掉，只是暂时搁置"
+                 % (underlying_level(d), sup.get("score", "—")), t, 170)
+            line(bv, "到期后", "自动恢复到底层判定；不需要你处理", t, 170)
+            line(bv, "要提前结束", "在 Codex 之外运行：python supervisor.py maintenance off --by 你 --reason 原因",
+                 t, 170)
+            line(bv, "被卡住了", "双击桌面「管家-紧急恢复」，或 python supervisor.py rescue", t, 170)
+
         # ---- 两个核心（这才是这个软件在干的事）
         idx, chk, vevs = self._vault_state()
         vsum = chk.get("summary") or {}
@@ -804,9 +818,14 @@ class PagesMixin:
 
         k = QHBoxLayout()
         k.setSpacing(12)
-        kpi(k, "当前等级", "%s %s" % (LEVELS.get(d.get("level") or "WATCH", ("·", "—"))[0],
-                                    LEVELS.get(d.get("level") or "WATCH", ("", "—"))[1]),
-            "分数 %s" % sup.get("score", "—"), t, LEVELS.get(d.get("level") or "WATCH", ("", "", "w"))[2])
+        _lvl = d.get("level") or "WATCH"
+        _sub = ("分数 %s" % sup.get("score", "—"))
+        if d.get("maintenance_active"):
+            from gui_widgets import underlying_level
+            _sub = "底层仍是 %s（分数 %s）· 维护中只放行不改判" % (underlying_level(d), sup.get("score", "—"))
+        kpi(k, "当前等级", "%s %s" % (LEVELS.get(_lvl, ("·", "—"))[0],
+                                    LEVELS.get(_lvl, ("", "—"))[1]),
+            _sub, t, LEVELS.get(_lvl, ("", "", "w"))[2])
         kpi(k, "最近判定", hhmmss(last.get("ts")) if last else "—",
             ("%d 条违规" % len(last.get("violations") or [])) if last.get("violations") else "没发现违规", t)
         kpi(k, "判定轮数", str(_m.get("judged_turns", len(judged))), "累计判过多少轮", t)
